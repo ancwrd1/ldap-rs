@@ -3,14 +3,13 @@
 ## Overview
 
 This project aims to provide a minimal working LDAP client written in Rust.
-It is currently in the early stages of development. The following features are already implemented:
-
-* Simple bind with username and password
-* Plain, TLS and STARTTLS connections
-* Simple search and paged search
+It is currently in the early stages of development.
 
 ## Roadmap
 
+- [x] Simple bind with username and password
+- [x] Plain, TLS and STARTTLS connections
+- [x] Simple search and paged search
 - [ ] All of the `ProtocolOp` LDAP operations
 - [ ] Streaming search
 - [ ] Documentation
