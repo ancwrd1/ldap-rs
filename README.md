@@ -9,10 +9,17 @@ It is currently in the early stages of development. The following features are a
 * Plain, TLS and STARTTLS connections
 * Simple search and paged search
 
+## Roadmap
+
+- [] All of the `ProtocolOp` LDAP operations
+- [] Streaming search
+- [] Documentation
+
 ## Non-goals
 
 * Kerberos bind (use TLS instead)
 * SASL bind (use TLS instead)
+* Server-side implementation
 
 ## Usage 
 
