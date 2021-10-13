@@ -216,7 +216,7 @@ impl LdapChannel {
             let (mut sink, stream) = framed.split();
 
             // we receive LdapMessage messages from the clients and convert to stream chunks
-            let mut rx = rx_out.map(|msg: LdapMessage| Ok::<_, Error>(msg));
+            let mut rx = rx_out.map(Ok::<_, Error>);
 
             // app -> socket
             let to_wire = sink.send_all(&mut rx);

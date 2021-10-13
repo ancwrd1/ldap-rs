@@ -81,6 +81,7 @@ fn simple_to_ldap(pairs: RulePairs) -> Filter {
     }
 }
 
+#[allow(clippy::mutable_key_type)]
 fn pairs_to_set(pairs: RulePairs) -> SetOf<Filter> {
     pairs.map(pair_to_ldap).collect()
 }
@@ -89,7 +90,7 @@ fn pairs_to_set(pairs: RulePairs) -> SetOf<Filter> {
 mod tests {
     use super::*;
 
-    static FILTERS: &[&'static str] = &[
+    static FILTERS: &[&str] = &[
         "(cn=Babs Jensen)",
         "(cn=*)",
         "(!(cn=Tim Howes))",
