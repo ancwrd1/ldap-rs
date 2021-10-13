@@ -11,9 +11,9 @@ It is currently in the early stages of development. The following features are a
 
 ## Roadmap
 
-- [] All of the `ProtocolOp` LDAP operations
-- [] Streaming search
-- [] Documentation
+- [ ] All of the `ProtocolOp` LDAP operations
+- [ ] Streaming search
+- [ ] Documentation
 
 ## Non-goals
 
