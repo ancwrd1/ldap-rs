@@ -196,6 +196,7 @@ impl LdapClient {
                     } else {
                         error!("No controls returned in the SearchResDone");
                     }
+                    break;
                 }
                 other => {
                     error!("Invalid search response: {:?}", other);
