@@ -30,10 +30,7 @@ async fn main() {
     let size = 1;
     let mut ctrl = SimplePagedResultsControl::new(size);
     loop {
-        let result = client
-            .search_paged(req.clone(), ctrl.with_size(size))
-            .await
-            .unwrap();
+        let result = client.search_paged(req.clone(), ctrl.with_size(size)).await.unwrap();
         ctrl = result.1;
         println!(
             "Page cookie: {}, returned size: {}",

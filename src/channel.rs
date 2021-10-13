@@ -125,14 +125,9 @@ impl LdapChannel {
 
     /// Connect to a server
     /// Returns a pair of (sender, receiver) endpoints
-    pub async fn connect(
-        self,
-        tls_options: TlsOptions,
-    ) -> ChannelResult<(LdapMessageSender, LdapMessageReceiver)> {
+    pub async fn connect(self, tls_options: TlsOptions) -> ChannelResult<(LdapMessageSender, LdapMessageReceiver)> {
         let mut addrs = (self.address.as_ref(), self.port).to_socket_addrs()?;
-        let address = addrs
-            .next()
-            .ok_or_else(|| io_error("Address resolution error"))?;
+        let address = addrs.next().ok_or_else(|| io_error("Address resolution error"))?;
 
         // TCP connect with a timeout
         let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(&address)).await??;
@@ -142,17 +137,11 @@ impl LdapChannel {
         match tls_options.kind {
             TlsKind::Plain => self.make_channel(stream),
             TlsKind::Tls => self.make_channel(self.tls_connect(tls_options, stream).await?),
-            TlsKind::StartTls => {
-                self.make_channel(self.starttls_connect(tls_options, stream).await?)
-            }
+            TlsKind::StartTls => self.make_channel(self.starttls_connect(tls_options, stream).await?),
         }
     }
 
-    async fn starttls_connect<S>(
-        &self,
-        tls_options: TlsOptions,
-        mut stream: S,
-    ) -> ChannelResult<TlsStream<S>>
+    async fn starttls_connect<S>(&self, tls_options: TlsOptions, mut stream: S) -> ChannelResult<TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
@@ -168,9 +157,7 @@ impl LdapChannel {
             .map_err(|_| ChannelError::StartTlsFailed)?;
         if let Some(Ok(item)) = framed.next().await {
             match item.protocol_op {
-                ProtocolOp::ExtendedResp(resp)
-                    if resp.result_code == ResultCode::Success && item.message_id == 1 =>
-                {
+                ProtocolOp::ExtendedResp(resp) if resp.result_code == ResultCode::Success && item.message_id == 1 => {
                     debug!("STARTTLS succeeded");
                     return self.tls_connect(tls_options, stream).await;
                 }
@@ -181,11 +168,7 @@ impl LdapChannel {
         Err(ChannelError::StartTlsFailed)
     }
 
-    async fn tls_connect<S>(
-        &self,
-        tls_options: TlsOptions,
-        stream: S,
-    ) -> ChannelResult<TlsStream<S>>
+    async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {

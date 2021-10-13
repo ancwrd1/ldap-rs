@@ -63,8 +63,7 @@ impl TryFrom<Control> for SimplePagedResultsControl {
     type Error = Error;
 
     fn try_from(value: Control) -> Result<Self, Self::Error> {
-        let value =
-            ber::decode::<RealSearchControlValue>(value.control_value.as_deref().unwrap_or(b""))?;
+        let value = ber::decode::<RealSearchControlValue>(value.control_value.as_deref().unwrap_or(b""))?;
 
         Ok(SimplePagedResultsControl {
             size: value.size,

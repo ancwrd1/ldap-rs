@@ -7,8 +7,8 @@ use std::{
 use futures::{SinkExt, StreamExt};
 use log::{error, trace};
 use rasn_ldap::{
-    AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode,
-    SearchRequest, SearchResultEntry, UnbindRequest,
+    AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode, SearchRequest,
+    SearchResultEntry, UnbindRequest,
 };
 
 use crate::{
@@ -58,9 +58,7 @@ impl LdapClient {
     where
         A: AsRef<str>,
     {
-        let (sender, receiver) = LdapChannel::for_client(address, port)
-            .connect(tls_options)
-            .await?;
+        let (sender, receiver) = LdapChannel::for_client(address, port).connect(tls_options).await?;
         Ok(Self {
             sender,
             receiver,
@@ -73,10 +71,11 @@ impl LdapClient {
     }
 
     async fn recv_message(&mut self, id: u32) -> Result<LdapMessage, Error> {
-        let msg =
-            self.receiver.next().await.ok_or_else(|| {
-                io::Error::new(io::ErrorKind::ConnectionReset, "Connection closed")
-            })?;
+        let msg = self
+            .receiver
+            .next()
+            .await
+            .ok_or_else(|| io::Error::new(io::ErrorKind::ConnectionReset, "Connection closed"))?;
         if msg.message_id == id {
             Ok(msg)
         } else {
@@ -127,10 +126,7 @@ impl LdapClient {
         Ok(())
     }
 
-    pub async fn search(
-        &mut self,
-        request: SearchRequest,
-    ) -> Result<Vec<SearchResultEntry>, Error> {
+    pub async fn search(&mut self, request: SearchRequest) -> Result<Vec<SearchResultEntry>, Error> {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));

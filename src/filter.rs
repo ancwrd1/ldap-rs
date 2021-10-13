@@ -5,9 +5,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use rasn::prelude::*;
-use rasn_ldap::{
-    AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter,
-};
+use rasn_ldap::{AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
 
 use crate::error::Error;
 

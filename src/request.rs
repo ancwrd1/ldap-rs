@@ -75,10 +75,7 @@ impl SearchRequestBuilder {
         I: IntoIterator<Item = T>,
         T: AsRef<str>,
     {
-        self.attributes = attributes
-            .into_iter()
-            .map(|a| a.as_ref().to_owned())
-            .collect();
+        self.attributes = attributes.into_iter().map(|a| a.as_ref().to_owned()).collect();
         self
     }
 
