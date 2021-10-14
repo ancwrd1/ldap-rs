@@ -1,10 +1,12 @@
 use std::{
     convert::{TryFrom, TryInto},
-    io,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use log::{error, trace};
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode, SearchRequest,
@@ -12,7 +14,8 @@ use rasn_ldap::{
 };
 
 use crate::{
-    channel::{LdapChannel, LdapMessageReceiver, LdapMessageSender, TlsOptions},
+    channel::TlsOptions,
+    conn::LdapConnection,
     controls::{SimplePagedResultsControl, PAGED_CONTROL_OID},
     error::Error,
 };
@@ -39,10 +42,10 @@ impl LdapClientBuilder {
     }
 }
 
+#[derive(Clone)]
 pub struct LdapClient {
-    sender: LdapMessageSender,
-    receiver: LdapMessageReceiver,
-    id_counter: AtomicU32,
+    connection: LdapConnection,
+    id_counter: Arc<AtomicU32>,
 }
 
 impl LdapClient {
@@ -58,29 +61,15 @@ impl LdapClient {
     where
         A: AsRef<str>,
     {
-        let (sender, receiver) = LdapChannel::for_client(address, port).connect(tls_options).await?;
+        let connection = LdapConnection::connect(address, port, tls_options).await?;
         Ok(Self {
-            sender,
-            receiver,
-            id_counter: AtomicU32::new(2),
+            connection,
+            id_counter: Arc::new(AtomicU32::new(2)), // 1 is used by STARTTLS
         })
     }
 
     fn new_id(&mut self) -> u32 {
         self.id_counter.fetch_add(1, Ordering::SeqCst)
-    }
-
-    async fn recv_message(&mut self, id: u32) -> Result<LdapMessage, Error> {
-        let msg = self
-            .receiver
-            .next()
-            .await
-            .ok_or_else(|| io::Error::new(io::ErrorKind::ConnectionReset, "Connection closed"))?;
-        if msg.message_id == id {
-            Ok(msg)
-        } else {
-            Err(Error::InvalidMessageId)
-        }
     }
 
     fn check_result(&self, result: LdapResult) -> Result<(), Error> {
@@ -103,9 +92,7 @@ impl LdapClient {
         let msg = LdapMessage::new(id, ProtocolOp::BindRequest(req));
 
         trace!("Sending message: {:?}", msg);
-        self.sender.send(msg).await?;
-
-        let item = self.recv_message(id).await?;
+        let item = self.connection.send_recv(msg).await?;
         trace!("Received message: {:?}", item);
 
         match item.protocol_op {
@@ -122,7 +109,7 @@ impl LdapClient {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::UnbindRequest(UnbindRequest));
-        self.sender.send(msg).await?;
+        self.connection.send(msg).await?;
         Ok(())
     }
 
@@ -130,12 +117,11 @@ impl LdapClient {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
-        self.sender.send(msg).await?;
 
+        let mut stream = self.connection.send_recv_stream(msg).await?;
         let mut entries = Vec::new();
 
-        loop {
-            let item = self.recv_message(id).await?;
+        while let Some(item) = stream.next().await {
             trace!("Received message: {:?}", item);
 
             match item.protocol_op {
@@ -164,12 +150,10 @@ impl LdapClient {
         let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
         msg.controls = Some(vec![control.try_into()?]);
 
-        self.sender.send(msg).await?;
-
+        let mut stream = self.connection.send_recv_stream(msg).await?;
         let mut entries = Vec::new();
 
-        loop {
-            let item = self.recv_message(id).await?;
+        while let Some(item) = stream.next().await {
             trace!("Received message: {:?}", item);
 
             match item.protocol_op {
