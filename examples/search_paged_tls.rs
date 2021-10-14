@@ -1,4 +1,4 @@
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 
 use ldap_rs::{
     rasn_ldap::{SearchRequestDerefAliases, SearchRequestScope},
@@ -31,6 +31,7 @@ async fn main() {
     let mut page_stream = client.search_paged(req, 1);
 
     while let Some(Ok(page)) = page_stream.next().await {
-        println!("{:#?}", page);
+        let items = page.try_collect::<Vec<_>>().await.unwrap();
+        println!("{:#?}", items);
     }
 }

@@ -10,8 +10,8 @@ It is currently in the early stages of development.
 - [x] Simple bind with username and password
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search
+- [x] Streaming search
 - [ ] All of the `ProtocolOp` LDAP operations
-- [ ] Streaming search
 - [ ] Documentation
 
 ## Non-goals

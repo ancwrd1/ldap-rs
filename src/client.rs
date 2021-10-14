@@ -8,8 +8,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::{future::BoxFuture, Future, Stream, StreamExt};
-use log::{error, trace};
+use futures::{future::BoxFuture, Future, Stream};
+use log::trace;
+use parking_lot::RwLock;
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode, SearchRequest,
     SearchResultEntry, UnbindRequest,
@@ -24,8 +25,6 @@ use crate::{
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-type SearchResult = Result<(Vec<SearchResultEntry>, SimplePagedResultsControl)>;
 
 pub struct LdapClientBuilder {
     address: String,
@@ -117,140 +116,124 @@ impl LdapClient {
 
         let msg = LdapMessage::new(id, ProtocolOp::UnbindRequest(UnbindRequest));
         self.connection.send(msg).await?;
+
         Ok(())
     }
 
-    pub async fn search(&mut self, request: SearchRequest) -> Result<SearchEntryStream> {
+    pub async fn search(&mut self, request: SearchRequest) -> Result<SearchEntries> {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
         let stream = self.connection.send_recv_stream(msg).await?;
 
-        Ok(SearchEntryStream { inner: stream })
+        Ok(SearchEntries {
+            inner: stream,
+            control: None,
+        })
     }
 
-    pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> PageStream {
-        PageStream {
-            control: SimplePagedResultsControl::new(page_size),
+    pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> Pages {
+        Pages {
+            control: Arc::new(RwLock::new(SimplePagedResultsControl::new(page_size))),
             client: self.clone(),
             request,
             page_size,
-            last_page: false,
             inner: None,
         }
     }
-
-    async fn do_search_paged(&mut self, request: SearchRequest, control: SimplePagedResultsControl) -> SearchResult {
-        let id = self.new_id();
-
-        let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
-        msg.controls = Some(vec![control.try_into()?]);
-
-        let mut stream = self.connection.send_recv_stream(msg).await?;
-        let mut entries = Vec::new();
-
-        while let Some(item) = stream.next().await {
-            trace!("Received message: {:?}", item);
-
-            match item.protocol_op {
-                ProtocolOp::SearchResEntry(entry) => entries.push(entry),
-                ProtocolOp::SearchResRef(_) => {}
-                ProtocolOp::SearchResDone(done) => {
-                    self.check_result(done.0)?;
-
-                    if let Some(controls) = item.controls {
-                        if let Some(control) = controls
-                            .into_iter()
-                            .find(|c| c.control_type == PAGED_CONTROL_OID)
-                            .map(|c| SimplePagedResultsControl::try_from(c).ok())
-                            .flatten()
-                        {
-                            return Ok((entries, control));
-                        } else {
-                            error!("No paged control in the SearchResDone");
-                        }
-                    } else {
-                        error!("No controls returned in the SearchResDone");
-                    }
-                    break;
-                }
-                other => {
-                    error!("Invalid search response: {:?}", other);
-                    break;
-                }
-            }
-        }
-        Err(Error::InvalidResponse)
-    }
 }
 
-pub struct PageStream {
-    control: SimplePagedResultsControl,
+pub struct Pages {
+    control: Arc<RwLock<SimplePagedResultsControl>>,
     client: LdapClient,
     request: SearchRequest,
     page_size: u32,
-    last_page: bool,
-    inner: Option<BoxFuture<'static, SearchResult>>,
+    inner: Option<BoxFuture<'static, Result<SearchEntries>>>,
 }
 
-impl Stream for PageStream {
-    type Item = Result<Vec<SearchResultEntry>>;
+impl Stream for Pages {
+    type Item = Result<SearchEntries>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.last_page {
+        if !self.control.read().has_entries() {
             return Poll::Ready(None);
         }
 
         if self.inner.is_none() {
             let mut client = self.client.clone();
             let request = self.request.clone();
-            let control = self.control.clone();
+            let control_ref = self.control.clone();
             let page_size = self.page_size;
 
-            let fut = async move { client.do_search_paged(request, control.with_size(page_size)).await };
+            let fut = async move {
+                let id = client.new_id();
+
+                let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
+                msg.controls = Some(vec![control_ref.read().clone().with_size(page_size).try_into()?]);
+
+                let stream = client.connection.send_recv_stream(msg).await?;
+                Ok(SearchEntries {
+                    inner: stream,
+                    control: Some(control_ref),
+                })
+            };
             self.inner = Some(Box::pin(fut));
         }
 
         match Pin::new(self.inner.as_mut().unwrap()).poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Err(err)) => {
-                self.last_page = true;
-                Poll::Ready(Some(Err(err)))
-            }
-            Poll::Ready(Ok((items, control))) => {
-                if control.cookie().is_empty() {
-                    self.last_page = true;
-                }
-                self.control = control;
+            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+            Poll::Ready(Ok(entries)) => {
                 self.inner = None;
-                Poll::Ready(Some(Ok(items)))
+                Poll::Ready(Some(Ok(entries)))
             }
         }
     }
 }
 
-pub struct SearchEntryStream {
+pub struct SearchEntries {
     inner: MessageStream,
+    control: Option<Arc<RwLock<SimplePagedResultsControl>>>,
 }
 
-impl Stream for SearchEntryStream {
+impl Stream for SearchEntries {
     type Item = Result<SearchResultEntry>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.inner).poll_next(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(None) => Poll::Ready(Some(Err(Error::ConnectionClosed))),
-            Poll::Ready(Some(msg)) => match msg.protocol_op {
-                ProtocolOp::SearchResEntry(item) => Poll::Ready(Some(Ok(item))),
-                ProtocolOp::SearchResDone(done) => {
-                    if done.0.result_code == ResultCode::Success {
-                        Poll::Ready(None)
-                    } else {
-                        Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+        loop {
+            match Pin::new(&mut self.inner).poll_next(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(None) => return Poll::Ready(Some(Err(Error::ConnectionClosed))),
+                Poll::Ready(Some(msg)) => match msg.protocol_op {
+                    ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
+                    ProtocolOp::SearchResRef(_) => {}
+                    ProtocolOp::SearchResDone(done) => {
+                        return if done.0.result_code == ResultCode::Success {
+                            if let Some(ref control_ref) = self.control {
+                                let page_control = msg.controls.and_then(|controls| {
+                                    controls
+                                        .into_iter()
+                                        .find(|c| c.control_type == PAGED_CONTROL_OID)
+                                        .map(|c| SimplePagedResultsControl::try_from(c).ok())
+                                        .flatten()
+                                });
+
+                                if let Some(page_control) = page_control {
+                                    *control_ref.write() = page_control;
+                                    Poll::Ready(None)
+                                } else {
+                                    Poll::Ready(Some(Err(Error::InvalidResponse)))
+                                }
+                            } else {
+                                Poll::Ready(None)
+                            }
+                        } else {
+                            Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+                        }
                     }
-                }
-                _ => Poll::Ready(Some(Err(Error::InvalidResponse))),
-            },
+                    _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
+                },
+            }
         }
     }
 }

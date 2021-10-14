@@ -11,6 +11,7 @@ pub const PAGED_CONTROL_OID: &[u8] = b"1.2.840.113556.1.4.319";
 pub struct SimplePagedResultsControl {
     size: Integer,
     cookie: OctetString,
+    has_entries: bool,
 }
 
 impl SimplePagedResultsControl {
@@ -18,6 +19,7 @@ impl SimplePagedResultsControl {
         Self {
             size: size.into(),
             cookie: OctetString::default(),
+            has_entries: true,
         }
     }
 
@@ -34,6 +36,10 @@ impl SimplePagedResultsControl {
 
     pub fn size(&self) -> &Integer {
         &self.size
+    }
+
+    pub fn has_entries(&self) -> bool {
+        self.has_entries
     }
 }
 
@@ -64,10 +70,12 @@ impl TryFrom<Control> for SimplePagedResultsControl {
 
     fn try_from(value: Control) -> Result<Self, Self::Error> {
         let value = ber::decode::<RealSearchControlValue>(value.control_value.as_deref().unwrap_or(b""))?;
+        let has_entries = !value.cookie.is_empty();
 
         Ok(SimplePagedResultsControl {
             size: value.size,
             cookie: value.cookie,
+            has_entries,
         })
     }
 }
