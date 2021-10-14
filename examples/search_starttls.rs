@@ -1,3 +1,5 @@
+use futures::TryStreamExt;
+
 use ldap_rs::{
     client::LdapClient,
     rasn_ldap::{SearchRequestDerefAliases, SearchRequestScope},
@@ -26,5 +28,6 @@ async fn main() {
         .unwrap();
 
     let result = client.search(req).await.unwrap();
-    println!("{:#?}", result);
+    let items = result.try_collect::<Vec<_>>().await.unwrap();
+    println!("{:#?}", items);
 }

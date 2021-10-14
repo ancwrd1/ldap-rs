@@ -44,6 +44,7 @@ pub enum Error {
     OperationFailed(OperationError),
     InvalidFilter(pest::error::Error<Rule>),
     InvalidResponse,
+    ConnectionClosed,
 }
 
 impl error::Error for Error {}
@@ -96,6 +97,7 @@ impl fmt::Display for Error {
             Error::OperationFailed(code) => write!(f, "LDAP operation failed: {:?}", code),
             Error::InvalidResponse => write!(f, "Invalid response"),
             Error::InvalidFilter(e) => write!(f, "{}", e),
+            Error::ConnectionClosed => write!(f, "Connection closed"),
         }
     }
 }

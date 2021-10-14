@@ -15,6 +15,7 @@ use rasn_ldap::{
     SearchResultEntry, UnbindRequest,
 };
 
+use crate::conn::MessageStream;
 use crate::{
     channel::TlsOptions,
     conn::LdapConnection,
@@ -119,31 +120,13 @@ impl LdapClient {
         Ok(())
     }
 
-    pub async fn search(&mut self, request: SearchRequest) -> Result<Vec<SearchResultEntry>> {
+    pub async fn search(&mut self, request: SearchRequest) -> Result<SearchEntryStream> {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
+        let stream = self.connection.send_recv_stream(msg).await?;
 
-        let mut stream = self.connection.send_recv_stream(msg).await?;
-        let mut entries = Vec::new();
-
-        while let Some(item) = stream.next().await {
-            trace!("Received message: {:?}", item);
-
-            match item.protocol_op {
-                ProtocolOp::SearchResEntry(entry) => entries.push(entry),
-                ProtocolOp::SearchResRef(_) => {}
-                ProtocolOp::SearchResDone(done) => {
-                    self.check_result(done.0)?;
-                    break;
-                }
-                other => {
-                    error!("Invalid search response: {:?}", other);
-                    return Err(Error::InvalidResponse);
-                }
-            }
-        }
-        Ok(entries)
+        Ok(SearchEntryStream { inner: stream })
     }
 
     pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> PageStream {
@@ -242,6 +225,32 @@ impl Stream for PageStream {
                 self.inner = None;
                 Poll::Ready(Some(Ok(items)))
             }
+        }
+    }
+}
+
+pub struct SearchEntryStream {
+    inner: MessageStream,
+}
+
+impl Stream for SearchEntryStream {
+    type Item = Result<SearchResultEntry>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match Pin::new(&mut self.inner).poll_next(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(Some(Err(Error::ConnectionClosed))),
+            Poll::Ready(Some(msg)) => match msg.protocol_op {
+                ProtocolOp::SearchResEntry(item) => Poll::Ready(Some(Ok(item))),
+                ProtocolOp::SearchResDone(done) => {
+                    if done.0.result_code == ResultCode::Success {
+                        Poll::Ready(None)
+                    } else {
+                        Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+                    }
+                }
+                _ => Poll::Ready(Some(Err(Error::InvalidResponse))),
+            },
         }
     }
 }
