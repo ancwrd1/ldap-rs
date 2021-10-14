@@ -53,7 +53,7 @@ impl LdapConnection {
                         break;
                     }
                     _ => {
-                        let sender = clients.read().get(&msg.message_id).map(|c| c.clone());
+                        let sender = clients.read().get(&msg.message_id).cloned();
                         if let Some(mut sender) = sender {
                             let _ = sender.send(msg).await;
                         }

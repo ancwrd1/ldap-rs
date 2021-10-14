@@ -1,5 +1,6 @@
+use futures::StreamExt;
+
 use ldap_rs::{
-    controls::SimplePagedResultsControl,
     rasn_ldap::{SearchRequestDerefAliases, SearchRequestScope},
     request::SearchRequestBuilder,
     LdapClient, TlsOptions,
@@ -27,20 +28,9 @@ async fn main() {
         .build()
         .unwrap();
 
-    let size = 1;
-    let mut ctrl = SimplePagedResultsControl::new(size);
-    loop {
-        let result = client.search_paged(req.clone(), ctrl.with_size(size)).await.unwrap();
-        ctrl = result.1;
-        println!(
-            "Page cookie: {}, returned size: {}",
-            !ctrl.cookie().is_empty(),
-            ctrl.size()
-        );
-        println!("{:#?}", result.0);
+    let mut page_stream = client.search_paged(req, 1);
 
-        if ctrl.cookie().is_empty() {
-            break;
-        }
+    while let Some(Ok(page)) = page_stream.next().await {
+        println!("{:#?}", page);
     }
 }
