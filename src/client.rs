@@ -128,13 +128,15 @@ impl LdapClient {
 
         Ok(SearchEntries {
             inner: stream,
-            control: None,
+            page_control: None,
+            page_finished: None,
         })
     }
 
     pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> Pages {
         Pages {
-            control: Arc::new(RwLock::new(SimplePagedResultsControl::new(page_size))),
+            page_control: Arc::new(RwLock::new(SimplePagedResultsControl::new(page_size))),
+            page_finished: Arc::new(RwLock::new(None)),
             client: self.clone(),
             request,
             page_size,
@@ -144,26 +146,40 @@ impl LdapClient {
 }
 
 pub struct Pages {
-    control: Arc<RwLock<SimplePagedResultsControl>>,
+    page_control: Arc<RwLock<SimplePagedResultsControl>>,
+    page_finished: Arc<RwLock<Option<bool>>>,
     client: LdapClient,
     request: SearchRequest,
     page_size: u32,
     inner: Option<BoxFuture<'static, Result<SearchEntries>>>,
 }
 
+impl Pages {
+    fn is_page_finished(&self) -> bool {
+        self.page_finished.read().unwrap_or(true)
+    }
+}
+
 impl Stream for Pages {
     type Item = Result<SearchEntries>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if !self.control.read().has_entries() {
+        if !self.page_control.read().has_entries() {
             return Poll::Ready(None);
         }
 
         if self.inner.is_none() {
+            if !self.is_page_finished() {
+                return Poll::Ready(None);
+            }
+
             let mut client = self.client.clone();
             let request = self.request.clone();
-            let control_ref = self.control.clone();
+            let control_ref = self.page_control.clone();
             let page_size = self.page_size;
+            let page_finished = self.page_finished.clone();
+
+            *self.page_finished.write() = Some(false);
 
             let fut = async move {
                 let id = client.new_id();
@@ -174,7 +190,8 @@ impl Stream for Pages {
                 let stream = client.connection.send_recv_stream(msg).await?;
                 Ok(SearchEntries {
                     inner: stream,
-                    control: Some(control_ref),
+                    page_control: Some(control_ref),
+                    page_finished: Some(page_finished),
                 })
             };
             self.inner = Some(Box::pin(fut));
@@ -193,7 +210,8 @@ impl Stream for Pages {
 
 pub struct SearchEntries {
     inner: MessageStream,
-    control: Option<Arc<RwLock<SimplePagedResultsControl>>>,
+    page_control: Option<Arc<RwLock<SimplePagedResultsControl>>>,
+    page_finished: Option<Arc<RwLock<Option<bool>>>>,
 }
 
 impl Stream for SearchEntries {
@@ -204,36 +222,37 @@ impl Stream for SearchEntries {
             match Pin::new(&mut self.inner).poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => return Poll::Ready(Some(Err(Error::ConnectionClosed))),
-                Poll::Ready(Some(msg)) => {
-                    match msg.protocol_op {
-                        ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
-                        ProtocolOp::SearchResRef(_) => {}
-                        ProtocolOp::SearchResDone(done) => {
-                            return if done.0.result_code == ResultCode::Success {
-                                if let Some(ref control_ref) = self.control {
-                                    let page_control = msg.controls.and_then(|controls| {
-                                        controls
-                                            .into_iter()
-                                            .find(|c| c.control_type == PAGED_CONTROL_OID)
-                                            .map(|c| SimplePagedResultsControl::try_from(c).ok())
-                                            .flatten()
-                                    });
+                Poll::Ready(Some(msg)) => match msg.protocol_op {
+                    ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
+                    ProtocolOp::SearchResRef(_) => {}
+                    ProtocolOp::SearchResDone(done) => {
+                        if let Some(ref page_finished) = self.page_finished {
+                            *page_finished.write() = Some(true);
+                        }
+                        return if done.0.result_code == ResultCode::Success {
+                            if let Some(ref control_ref) = self.page_control {
+                                let page_control = msg.controls.and_then(|controls| {
+                                    controls
+                                        .into_iter()
+                                        .find(|c| c.control_type == PAGED_CONTROL_OID)
+                                        .map(|c| SimplePagedResultsControl::try_from(c).ok())
+                                        .flatten()
+                                });
 
-                                    if let Some(page_control) = page_control {
-                                        *control_ref.write() = page_control;
-                                        Poll::Ready(None)
-                                    } else {
-                                        Poll::Ready(Some(Err(Error::InvalidResponse)))
-                                    }
-                                } else {
+                                if let Some(page_control) = page_control {
+                                    *control_ref.write() = page_control;
                                     Poll::Ready(None)
+                                } else {
+                                    Poll::Ready(Some(Err(Error::InvalidResponse)))
                                 }
                             } else {
-                                Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+                                Poll::Ready(None)
                             }
-                        }
-                        _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
+                        } else {
+                            Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+                        };
                     }
+                    _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
                 },
             }
         }
