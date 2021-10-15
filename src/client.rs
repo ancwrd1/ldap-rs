@@ -204,34 +204,36 @@ impl Stream for SearchEntries {
             match Pin::new(&mut self.inner).poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => return Poll::Ready(Some(Err(Error::ConnectionClosed))),
-                Poll::Ready(Some(msg)) => match msg.protocol_op {
-                    ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
-                    ProtocolOp::SearchResRef(_) => {}
-                    ProtocolOp::SearchResDone(done) => {
-                        return if done.0.result_code == ResultCode::Success {
-                            if let Some(ref control_ref) = self.control {
-                                let page_control = msg.controls.and_then(|controls| {
-                                    controls
-                                        .into_iter()
-                                        .find(|c| c.control_type == PAGED_CONTROL_OID)
-                                        .map(|c| SimplePagedResultsControl::try_from(c).ok())
-                                        .flatten()
-                                });
+                Poll::Ready(Some(msg)) => {
+                    match msg.protocol_op {
+                        ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
+                        ProtocolOp::SearchResRef(_) => {}
+                        ProtocolOp::SearchResDone(done) => {
+                            return if done.0.result_code == ResultCode::Success {
+                                if let Some(ref control_ref) = self.control {
+                                    let page_control = msg.controls.and_then(|controls| {
+                                        controls
+                                            .into_iter()
+                                            .find(|c| c.control_type == PAGED_CONTROL_OID)
+                                            .map(|c| SimplePagedResultsControl::try_from(c).ok())
+                                            .flatten()
+                                    });
 
-                                if let Some(page_control) = page_control {
-                                    *control_ref.write() = page_control;
-                                    Poll::Ready(None)
+                                    if let Some(page_control) = page_control {
+                                        *control_ref.write() = page_control;
+                                        Poll::Ready(None)
+                                    } else {
+                                        Poll::Ready(Some(Err(Error::InvalidResponse)))
+                                    }
                                 } else {
-                                    Poll::Ready(Some(Err(Error::InvalidResponse)))
+                                    Poll::Ready(None)
                                 }
                             } else {
-                                Poll::Ready(None)
+                                Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
                             }
-                        } else {
-                            Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
                         }
+                        _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
                     }
-                    _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
                 },
             }
         }
