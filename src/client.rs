@@ -11,7 +11,9 @@ use std::{
 use futures::{future::BoxFuture, Future, Stream};
 use log::trace;
 use parking_lot::RwLock;
-use rasn_ldap::{AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, UnbindRequest};
+use rasn_ldap::{
+    AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, SaslCredentials, UnbindRequest,
+};
 
 use crate::{
     conn::{LdapConnection, MessageStream},
@@ -83,15 +85,8 @@ impl LdapClient {
         }
     }
 
-    pub async fn simple_bind<U, P>(&mut self, username: U, password: P) -> Result<()>
-    where
-        U: AsRef<str>,
-        P: AsRef<str>,
-    {
+    async fn do_bind(&mut self, req: BindRequest) -> Result<()> {
         let id = self.new_id();
-
-        let auth_choice = AuthenticationChoice::Simple(password.as_ref().to_owned().into());
-        let req = BindRequest::new(3, username.as_ref().to_owned().into(), auth_choice);
         let msg = LdapMessage::new(id, ProtocolOp::BindRequest(req));
 
         trace!("Sending message: {:?}", msg);
@@ -106,6 +101,22 @@ impl LdapClient {
             ))?),
             _ => Err(Error::InvalidResponse),
         }
+    }
+
+    pub async fn simple_bind<U, P>(&mut self, username: U, password: P) -> Result<()>
+    where
+        U: AsRef<str>,
+        P: AsRef<str>,
+    {
+        let auth_choice = AuthenticationChoice::Simple(password.as_ref().to_owned().into());
+        let req = BindRequest::new(3, username.as_ref().to_owned().into(), auth_choice);
+        self.do_bind(req).await
+    }
+
+    pub async fn sasl_external_bind(&mut self) -> Result<()> {
+        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(b"EXTERNAL".to_vec().into(), None));
+        let req = BindRequest::new(3, Default::default(), auth_choice);
+        self.do_bind(req).await
     }
 
     pub async fn unbind(&mut self) -> Result<()> {
