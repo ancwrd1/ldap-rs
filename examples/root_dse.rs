@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 
-use ldap_rs::{client::LdapClient, request::SearchRequestBuilder};
+use ldap_rs::{LdapClient, SearchRequestBuilder};
 
 #[tokio::main]
 async fn main() {

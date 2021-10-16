@@ -1,7 +1,9 @@
 pub use rasn_ldap;
 
-pub use client::{LdapClient, LdapClientBuilder};
-pub use options::TlsOptions;
+pub use client::*;
+pub use model::*;
+pub use options::*;
+pub use request::*;
 
 pub(crate) mod channel;
 pub(crate) mod codec;

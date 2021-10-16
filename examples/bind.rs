@@ -1,4 +1,4 @@
-use ldap_rs::client::LdapClient;
+use ldap_rs::LdapClient;
 
 #[tokio::main]
 async fn main() {

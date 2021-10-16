@@ -1,10 +1,6 @@
 use futures::{StreamExt, TryStreamExt};
 
-use ldap_rs::{
-    rasn_ldap::{SearchRequestDerefAliases, SearchRequestScope},
-    request::SearchRequestBuilder,
-    LdapClient, TlsOptions,
-};
+use ldap_rs::{LdapClient, SearchRequestBuilder, SearchRequestDerefAliases, SearchRequestScope, TlsOptions};
 
 #[tokio::main]
 async fn main() {
