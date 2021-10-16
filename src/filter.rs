@@ -1,4 +1,4 @@
-use bytes::Bytes;
+pub use bytes::Bytes;
 use pest::{
     iterators::{Pair, Pairs},
     Parser,

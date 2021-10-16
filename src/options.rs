@@ -1,4 +1,4 @@
-use native_tls::{Certificate, Identity};
+pub use native_tls::{Certificate, Identity};
 
 #[derive(Clone, PartialEq)]
 pub(crate) enum TlsKind {
