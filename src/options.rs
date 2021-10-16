@@ -1,12 +1,13 @@
 use native_tls::Certificate;
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) enum TlsKind {
     Plain,
     Tls,
     StartTls,
 }
 
+#[derive(Clone)]
 pub struct TlsOptions {
     pub(crate) kind: TlsKind,
     pub(crate) root_certs: Vec<Certificate>,
