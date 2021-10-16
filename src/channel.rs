@@ -117,11 +117,15 @@ impl LdapChannel {
     {
         debug!("Performing TLS handshake with {}", self.address);
         let mut tls_builder = native_tls::TlsConnector::builder();
-        for cert in tls_options.root_certs {
+        for cert in tls_options.ca_certs {
             tls_builder.add_root_certificate(cert);
         }
         tls_builder.danger_accept_invalid_hostnames(!tls_options.verify_hostname);
         tls_builder.danger_accept_invalid_certs(!tls_options.verify_certs);
+
+        if let Some(identity) = tls_options.identity {
+            tls_builder.identity(identity);
+        }
 
         let connector = tls_builder.build()?;
 

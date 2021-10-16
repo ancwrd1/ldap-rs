@@ -1,4 +1,4 @@
-use native_tls::Certificate;
+use native_tls::{Certificate, Identity};
 
 #[derive(Clone, PartialEq)]
 pub(crate) enum TlsKind {
@@ -10,18 +10,20 @@ pub(crate) enum TlsKind {
 #[derive(Clone)]
 pub struct TlsOptions {
     pub(crate) kind: TlsKind,
-    pub(crate) root_certs: Vec<Certificate>,
+    pub(crate) ca_certs: Vec<Certificate>,
     pub(crate) verify_hostname: bool,
     pub(crate) verify_certs: bool,
+    pub(crate) identity: Option<Identity>,
 }
 
 impl TlsOptions {
     fn new(kind: TlsKind) -> Self {
         Self {
             kind,
-            root_certs: Vec::new(),
+            ca_certs: Vec::new(),
             verify_hostname: true,
             verify_certs: true,
+            identity: None,
         }
     }
 
@@ -41,8 +43,14 @@ impl TlsOptions {
     }
 
     /// Add CA root certificate to use during TLS handshake
-    pub fn root_cert(mut self, cert: Certificate) -> Self {
-        self.root_certs.push(cert);
+    pub fn ca_cert(mut self, cert: Certificate) -> Self {
+        self.ca_certs.push(cert);
+        self
+    }
+
+    /// Set client identity for TLS mutual authentication
+    pub fn identity(mut self, identity: Identity) -> Self {
+        self.identity = Some(identity);
         self
     }
 
