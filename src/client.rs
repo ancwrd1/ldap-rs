@@ -74,7 +74,7 @@ impl LdapClient {
         })
     }
 
-    fn new_id(&mut self) -> u32 {
+    fn new_id(&self) -> u32 {
         self.id_counter.fetch_add(1, Ordering::SeqCst)
     }
 
