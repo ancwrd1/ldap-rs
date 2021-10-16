@@ -11,16 +11,13 @@ use std::{
 use futures::{future::BoxFuture, Future, Stream};
 use log::trace;
 use parking_lot::RwLock;
-use rasn_ldap::{
-    AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode, SearchRequest,
-    SearchResultEntry, UnbindRequest,
-};
+use rasn_ldap::{AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, UnbindRequest};
 
 use crate::{
-    conn::LdapConnection,
-    conn::MessageStream,
+    conn::{LdapConnection, MessageStream},
     controls::{SimplePagedResultsControl, PAGED_CONTROL_OID},
     error::Error,
+    model::*,
     options::TlsOptions,
 };
 
@@ -123,7 +120,7 @@ impl LdapClient {
     pub async fn search(&mut self, request: SearchRequest) -> Result<SearchEntries> {
         let id = self.new_id();
 
-        let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
+        let msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request.into()));
         let stream = self.connection.send_recv_stream(msg).await?;
 
         Ok(SearchEntries {
@@ -184,7 +181,7 @@ impl Stream for Pages {
             let fut = async move {
                 let id = client.new_id();
 
-                let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request));
+                let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request.into()));
                 msg.controls = Some(vec![control_ref.read().clone().with_size(page_size).try_into()?]);
 
                 let stream = client.connection.send_recv_stream(msg).await?;
@@ -215,7 +212,7 @@ pub struct SearchEntries {
 }
 
 impl Stream for SearchEntries {
-    type Item = Result<SearchResultEntry>;
+    type Item = Result<Attributes>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
@@ -223,7 +220,9 @@ impl Stream for SearchEntries {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => return Poll::Ready(Some(Err(Error::ConnectionClosed))),
                 Poll::Ready(Some(msg)) => match msg.protocol_op {
-                    ProtocolOp::SearchResEntry(item) => return Poll::Ready(Some(Ok(item))),
+                    ProtocolOp::SearchResEntry(item) => {
+                        return Poll::Ready(Some(Ok(item.attributes.into_iter().map(Into::into).collect())))
+                    }
                     ProtocolOp::SearchResRef(_) => {}
                     ProtocolOp::SearchResDone(done) => {
                         if let Some(ref page_finished) = self.page_finished {

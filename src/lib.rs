@@ -11,5 +11,6 @@ pub mod client;
 pub mod controls;
 pub mod error;
 pub mod filter;
+pub mod model;
 pub mod options;
 pub mod request;

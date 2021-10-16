@@ -1,8 +1,10 @@
 use std::time::Duration;
 
-use rasn_ldap::{SearchRequest, SearchRequestDerefAliases, SearchRequestScope};
-
-use crate::{error::Error, filter::filter_to_ldap};
+use crate::{
+    error::Error,
+    filter::filter_to_ldap,
+    model::{SearchRequest, SearchRequestDerefAliases, SearchRequestScope},
+};
 
 pub struct SearchRequestBuilder {
     base_dn: String,
@@ -80,7 +82,7 @@ impl SearchRequestBuilder {
     }
 
     pub fn build(self) -> Result<SearchRequest, Error> {
-        Ok(SearchRequest::new(
+        Ok(SearchRequest(rasn_ldap::SearchRequest::new(
             self.base_dn.into(),
             self.scope,
             self.deref_aliases,
@@ -89,6 +91,6 @@ impl SearchRequestBuilder {
             self.types_only,
             filter_to_ldap(self.filter)?,
             self.attributes.into_iter().map(Into::into).collect(),
-        ))
+        )))
     }
 }
