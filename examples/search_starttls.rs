@@ -23,7 +23,7 @@ async fn main() {
         .base_dn("dc=example,dc=com")
         .scope(SearchRequestScope::WholeSubtree)
         .deref_aliases(SearchRequestDerefAliases::NeverDerefAliases)
-        .filter("(&(objectClass=person)(uid=newton))")
+        .filter("(&(objectClass=person)(uid=ne*t*n))")
         .build()
         .unwrap();
 

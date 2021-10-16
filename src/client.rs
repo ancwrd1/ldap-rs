@@ -16,12 +16,12 @@ use rasn_ldap::{
     SearchResultEntry, UnbindRequest,
 };
 
-use crate::conn::MessageStream;
 use crate::{
-    channel::TlsOptions,
     conn::LdapConnection,
+    conn::MessageStream,
     controls::{SimplePagedResultsControl, PAGED_CONTROL_OID},
     error::Error,
+    options::TlsOptions,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -16,7 +16,7 @@ greater    = { ">=" }
 less       = { "<=" }
 extensible = { (attr ~ dnattr? ~ (":" ~ ruleid)? ~ ":=" ~ value) | (dnattr? ~ ":" ~ ruleid ~ ":=" ~ value) }
 present    = { attr ~ "=*" ~ !value }
-substring  = { attr ~ "=" ~ initial? ~ "*" ~ (any ~ "*")? ~ final_? }
+substring  = { attr ~ "=" ~ initial? ~ "*" ~ (any ~ "*")* ~ final_? }
 initial    = { value }
 any        = { value }
 final_     = { value }
