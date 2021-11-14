@@ -88,32 +88,99 @@ fn pairs_to_set(pairs: RulePairs) -> SetOf<Filter> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::BTreeSet;
 
-    static FILTERS: &[&str] = &[
-        "(cn=Babs Jensen)",
-        "(cn=*)",
-        "(!(cn=Tim Howes))",
-        "(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))",
-        "(o=univ*of*mich*end)",
-        "(cn:1.2.3.4.5:=Fred Flintstone)",
-        "(sn:dn:2.4.6.8.10:=Barney Rubble)",
-        "(o:dn:=Ace Industry)",
-        "(:dn:2.4.6.8.10:=Dino)",
-        "(!(userAccountControl:1.2.840.113556.1.4.803:=2))",
-    ];
+    use super::*;
 
     #[test]
     fn test_parser() {
-        FILTERS.iter().for_each(|f| {
-            assert!(FilterParser::parse(Rule::rfc2254, f).is_ok());
-        });
-    }
+        let test_filters = vec![
+            (
+                "(cn=Babs Jensen)",
+                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen".into())),
+            ),
+            ("(cn=*)", Filter::Present("cn".into())),
+            (
+                "(!(cn=Tim Howes))",
+                Filter::Not(Box::new(Filter::EqualityMatch(AttributeValueAssertion::new(
+                    "cn".into(),
+                    "Tim Howes".into(),
+                )))),
+            ),
+            (
+                "(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))",
+                Filter::And(BTreeSet::from([
+                    Filter::EqualityMatch(AttributeValueAssertion::new("objectClass".into(), "Person".into())),
+                    Filter::Or(BTreeSet::from([
+                        Filter::EqualityMatch(AttributeValueAssertion::new("sn".into(), "Jensen".into())),
+                        Filter::Substrings(SubstringFilter::new(
+                            b"cn".to_vec().into(),
+                            vec![SubstringChoice::Initial("Babs J".into())],
+                        )),
+                    ])),
+                ])),
+            ),
+            (
+                "(o=univ*of*mich*end)",
+                Filter::Substrings(SubstringFilter::new(
+                    b"o".to_vec().into(),
+                    vec![
+                        SubstringChoice::Initial("univ".into()),
+                        SubstringChoice::Any("of".into()),
+                        SubstringChoice::Any("mich".into()),
+                        SubstringChoice::Final("end".into()),
+                    ],
+                )),
+            ),
+            (
+                "(cn:1.2.3.4.5:=Fred Flintstone)",
+                Filter::ExtensibleMatch(MatchingRuleAssertion::new(
+                    Some("1.2.3.4.5".into()),
+                    Some("cn".into()),
+                    "Fred Flintstone".into(),
+                    false,
+                )),
+            ),
+            (
+                "(sn:dn:2.4.6.8.10:=Barney Rubble)",
+                Filter::ExtensibleMatch(MatchingRuleAssertion::new(
+                    Some("2.4.6.8.10".into()),
+                    Some("sn".into()),
+                    "Barney Rubble".into(),
+                    true,
+                )),
+            ),
+            (
+                "(o:dn:=Ace Industry)",
+                Filter::ExtensibleMatch(MatchingRuleAssertion::new(
+                    None,
+                    Some("o".into()),
+                    "Ace Industry".into(),
+                    true,
+                )),
+            ),
+            (
+                "(:dn:2.4.6.8.10:=Dino)",
+                Filter::ExtensibleMatch(MatchingRuleAssertion::new(
+                    Some("2.4.6.8.10".into()),
+                    None,
+                    "Dino".into(),
+                    true,
+                )),
+            ),
+            (
+                "(!(userAccountControl:1.2.840.113556.1.4.803:=2))",
+                Filter::Not(Box::new(Filter::ExtensibleMatch(MatchingRuleAssertion::new(
+                    Some("1.2.840.113556.1.4.803".into()),
+                    Some("userAccountControl".into()),
+                    "2".into(),
+                    false,
+                )))),
+            ),
+        ];
 
-    #[test]
-    fn test_converter() {
-        FILTERS.iter().for_each(|f| {
-            assert!(filter_to_ldap(f).is_ok());
+        test_filters.iter().for_each(|f| {
+            assert_eq!(filter_to_ldap(f.0).unwrap(), f.1);
         });
     }
 }
