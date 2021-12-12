@@ -1,6 +1,8 @@
+use std::collections::BTreeSet;
+
 pub use rasn_ldap::{ChangeOperation, ResultCode, SearchRequestDerefAliases, SearchRequestScope};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SearchRequest(pub(crate) rasn_ldap::SearchRequest);
 
 impl From<SearchRequest> for rasn_ldap::SearchRequest {
@@ -9,10 +11,10 @@ impl From<SearchRequest> for rasn_ldap::SearchRequest {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Attribute {
     pub name: String,
-    pub values: Vec<String>,
+    pub values: BTreeSet<String>,
 }
 
 pub type Attributes = Vec<Attribute>;
