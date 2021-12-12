@@ -16,9 +16,9 @@ type RulePairs<'a> = Pairs<'a, Rule>;
 #[grammar = "filter.pest"]
 pub(crate) struct FilterParser;
 
-pub(crate) fn filter_to_ldap<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
+pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
     let mut parsed = FilterParser::parse(Rule::rfc2254, filter.as_ref())?;
-    Ok(pair_to_ldap(parsed.next().expect("No top level rule")))
+    Ok(parse_rule(parsed.next().expect("No top level rule")))
 }
 
 fn as_bytes(pair: &RulePair) -> Bytes {
@@ -29,20 +29,20 @@ fn as_inner(pair: RulePair) -> RulePair {
     pair.into_inner().next().expect("No inner rule")
 }
 
-fn pair_to_ldap(pair: RulePair) -> Filter {
+fn parse_rule(pair: RulePair) -> Filter {
     match pair.as_rule() {
-        Rule::and => Filter::And(pairs_to_set(pair.into_inner())),
-        Rule::or => Filter::Or(pairs_to_set(pair.into_inner())),
-        Rule::not => Filter::Not(Box::new(pair_to_ldap(as_inner(pair)))),
-        Rule::simple => simple_to_ldap(pair.into_inner()),
+        Rule::and => Filter::And(parse_set(pair.into_inner())),
+        Rule::or => Filter::Or(parse_set(pair.into_inner())),
+        Rule::not => Filter::Not(Box::new(parse_rule(as_inner(pair)))),
+        Rule::simple => parse_simple(pair.into_inner()),
         Rule::present => Filter::Present(as_bytes(&as_inner(pair))),
         Rule::substring => substring_to_ldap(pair.into_inner()),
-        Rule::extensible => extensible_to_ldap(pair.into_inner()),
+        Rule::extensible => parse_extensible(pair.into_inner()),
         _ => panic!("Unexpected rule"),
     }
 }
 
-fn extensible_to_ldap(pairs: RulePairs) -> Filter {
+fn parse_extensible(pairs: RulePairs) -> Filter {
     let mut assertion = MatchingRuleAssertion::new(None, None, Bytes::default(), false);
     for pair in pairs {
         match pair.as_rule() {
@@ -69,7 +69,7 @@ fn substring_to_ldap(mut pairs: RulePairs) -> Filter {
     Filter::Substrings(SubstringFilter::new(attr, choices))
 }
 
-fn simple_to_ldap(pairs: RulePairs) -> Filter {
+fn parse_simple(pairs: RulePairs) -> Filter {
     let pairs = pairs.collect::<Vec<_>>();
     let assertion = AttributeValueAssertion::new(as_bytes(&pairs[0]), as_bytes(&pairs[2]));
     match pairs[1].as_rule() {
@@ -82,8 +82,8 @@ fn simple_to_ldap(pairs: RulePairs) -> Filter {
 }
 
 #[allow(clippy::mutable_key_type)]
-fn pairs_to_set(pairs: RulePairs) -> SetOf<Filter> {
-    pairs.map(pair_to_ldap).collect()
+fn parse_set(pairs: RulePairs) -> SetOf<Filter> {
+    pairs.map(parse_rule).collect()
 }
 
 #[cfg(test)]
@@ -180,7 +180,7 @@ mod tests {
         ];
 
         test_filters.iter().for_each(|f| {
-            assert_eq!(filter_to_ldap(f.0).unwrap(), f.1);
+            assert_eq!(parse_filter(f.0).unwrap(), f.1);
         });
     }
 }

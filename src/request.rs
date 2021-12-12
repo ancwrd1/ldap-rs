@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{
     error::Error,
-    filter::filter_to_ldap,
+    filter::parse_filter,
     model::{SearchRequest, SearchRequestDerefAliases, SearchRequestScope},
 };
 
@@ -89,7 +89,7 @@ impl SearchRequestBuilder {
             self.size_limit,
             self.time_limit.as_secs() as u32,
             self.types_only,
-            filter_to_ldap(self.filter)?,
+            parse_filter(self.filter)?,
             self.attributes.into_iter().map(Into::into).collect(),
         )))
     }
