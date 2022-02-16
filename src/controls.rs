@@ -44,7 +44,7 @@ impl SimplePagedResultsControl {
 }
 
 #[derive(AsnType, Encode, Decode, Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct RealSearchControlValue {
+struct RealSearchControlValue {
     size: Integer,
     cookie: OctetString,
 }
