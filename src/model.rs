@@ -14,7 +14,7 @@ impl From<SearchRequest> for rasn_ldap::SearchRequest {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Attribute {
     pub name: String,
-    pub values: BTreeSet<String>,
+    pub values: BTreeSet<Vec<u8>>,
 }
 
 pub type Attributes = Vec<Attribute>;
@@ -25,8 +25,8 @@ impl From<rasn_ldap::PartialAttribute> for Attribute {
             name: String::from_utf8_lossy(&raw.r#type).into_owned(),
             values: raw
                 .vals
-                .iter()
-                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .into_iter()
+                .map(|v| v.to_vec())
                 .collect(),
         }
     }
