@@ -1,4 +1,7 @@
+use std::borrow::Cow;
+
 pub use bytes::Bytes;
+use once_cell::sync::Lazy;
 use pest::{
     iterators::{Pair, Pairs},
     Parser,
@@ -6,6 +9,7 @@ use pest::{
 use pest_derive::Parser;
 use rasn::prelude::*;
 use rasn_ldap::{AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
+use regex::bytes::{Captures, Regex};
 
 use crate::error::Error;
 
@@ -21,8 +25,23 @@ pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
     Ok(parse_rule(parsed.next().expect("No top level rule")))
 }
 
+fn to_nibble(b: u8) -> u8 {
+    match b {
+        b'0'..=b'9' => b - b'0',
+        b'a'..=b'f' => 10 + b - b'a',
+        b'A'..=b'F' => 10 + b - b'F',
+        _ => panic!("Unexpected regex value"),
+    }
+}
+fn unescape(value: &[u8]) -> Cow<[u8]> {
+    static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(\\[\da-fA-F]{2})"#).unwrap());
+    HEX_RE.replace_all(value, |caps: &Captures| {
+        [(to_nibble(caps[1][1]) << 4) + to_nibble(caps[1][2])]
+    })
+}
+
 fn as_bytes(pair: &RulePair) -> Bytes {
-    pair.as_str().to_owned().into()
+    unescape(pair.as_str().as_bytes()).into_owned().into()
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -95,6 +114,13 @@ mod tests {
     #[test]
     fn test_parser() {
         let test_filters = vec![
+            (
+                r#"(cn=Babs Jensen\30\30)"#,
+                Filter::EqualityMatch(AttributeValueAssertion::new(
+                    "cn".into(),
+                    b"Babs Jensen00".to_vec().into(),
+                )),
+            ),
             (
                 "(cn=Babs Jensen)",
                 Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen".into())),
@@ -182,5 +208,19 @@ mod tests {
         test_filters.iter().for_each(|f| {
             assert_eq!(parse_filter(f.0).unwrap(), f.1);
         });
+    }
+
+    #[test]
+    fn test_unescape() {
+        let hex = r#"hello\20\77\6f\72\6c\64"#;
+        let decoded = unescape(hex.as_bytes());
+        assert_eq!(*decoded, *b"hello world");
+    }
+
+    #[test]
+    fn test_unescape_bad_pattern() {
+        let hex = r#"hello\\gg"#;
+        let decoded = unescape(hex.as_bytes());
+        assert_eq!(*decoded, *b"hello\\\\gg");
     }
 }
