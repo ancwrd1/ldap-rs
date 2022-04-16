@@ -1,13 +1,13 @@
 use futures::{StreamExt, TryStreamExt};
 
-use ldap_rs::{LdapClient, SearchRequestBuilder, SearchRequestDerefAliases, SearchRequestScope, TlsOptions};
+use ldap_rs::{LdapClient, SearchRequest, SearchRequestDerefAliases, SearchRequestScope, TlsOptions};
 
 #[tokio::main]
 async fn main() {
     let mut client = LdapClient::builder("myldap.intranet.lan")
         .port(636)
         .tls_options(TlsOptions::tls())
-        .build_and_connect()
+        .connect()
         .await
         .unwrap();
     client
@@ -16,7 +16,7 @@ async fn main() {
         .unwrap();
 
     // example how to search users which are not disabled in the Active Directory using rule filters
-    let req = SearchRequestBuilder::new()
+    let req = SearchRequest::builder()
         .base_dn("dc=intranet,dc=lan")
         .scope(SearchRequestScope::WholeSubtree)
         .deref_aliases(SearchRequestDerefAliases::NeverDerefAliases)

@@ -17,8 +17,8 @@ pub struct SearchRequestBuilder {
     attributes: Vec<String>,
 }
 
-impl Default for SearchRequestBuilder {
-    fn default() -> Self {
+impl SearchRequestBuilder {
+    pub(crate) fn new() -> Self {
         Self {
             base_dn: Default::default(),
             scope: SearchRequestScope::BaseObject,
@@ -29,12 +29,6 @@ impl Default for SearchRequestBuilder {
             filter: Default::default(),
             attributes: Vec::new(),
         }
-    }
-}
-
-impl SearchRequestBuilder {
-    pub fn new() -> Self {
-        SearchRequestBuilder::default()
     }
 
     pub fn base_dn<S: AsRef<str>>(mut self, base_dn: S) -> Self {
@@ -72,12 +66,21 @@ impl SearchRequestBuilder {
         self
     }
 
-    pub fn attributes<I, T>(mut self, attributes: I) -> Self
+    pub fn attributes<I, S>(mut self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = T>,
-        T: AsRef<str>,
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
     {
-        self.attributes = attributes.into_iter().map(|a| a.as_ref().to_owned()).collect();
+        self.attributes
+            .extend(attributes.into_iter().map(|a| a.as_ref().to_owned()));
+        self
+    }
+
+    pub fn attribute<S>(mut self, attribute: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        self.attributes.push(attribute.as_ref().to_owned());
         self
     }
 

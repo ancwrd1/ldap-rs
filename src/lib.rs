@@ -1,3 +1,4 @@
+pub use bytes;
 pub use rasn_ldap;
 
 pub use client::*;

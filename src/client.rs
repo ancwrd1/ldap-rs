@@ -42,7 +42,7 @@ impl LdapClientBuilder {
         self
     }
 
-    pub async fn build_and_connect(self) -> Result<LdapClient> {
+    pub async fn connect(self) -> Result<LdapClient> {
         LdapClient::connect(self.address, self.port, self.tls_options).await
     }
 }
@@ -245,8 +245,7 @@ impl Stream for SearchEntries {
                                     controls
                                         .into_iter()
                                         .find(|c| c.control_type == PAGED_CONTROL_OID)
-                                        .map(|c| SimplePagedResultsControl::try_from(c).ok())
-                                        .flatten()
+                                        .and_then(|c| SimplePagedResultsControl::try_from(c).ok())
                                 });
 
                                 if let Some(page_control) = page_control {
