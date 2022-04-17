@@ -12,7 +12,8 @@ use futures::{future::BoxFuture, Future, Stream};
 use log::trace;
 use parking_lot::RwLock;
 use rasn_ldap::{
-    AuthenticationChoice, BindRequest, LdapMessage, LdapResult, ProtocolOp, SaslCredentials, UnbindRequest,
+    AuthenticationChoice, BindRequest, Controls, LdapMessage, LdapResult, ProtocolOp, SaslCredentials,
+    SearchResultDone, UnbindRequest,
 };
 
 use crate::{
@@ -222,48 +223,57 @@ pub struct SearchEntries {
     page_finished: Option<Arc<RwLock<Option<bool>>>>,
 }
 
+impl SearchEntries {
+    fn search_done(
+        self: Pin<&mut Self>,
+        controls: Option<Controls>,
+        done: SearchResultDone,
+    ) -> Poll<Option<Result<Attributes>>> {
+        if let Some(ref page_finished) = self.page_finished {
+            *page_finished.write() = Some(true);
+        }
+        if done.0.result_code == ResultCode::Success {
+            if let Some(ref control_ref) = self.page_control {
+                let page_control = controls.and_then(|controls| {
+                    controls
+                        .into_iter()
+                        .find(|c| c.control_type == PAGED_CONTROL_OID)
+                        .and_then(|c| SimplePagedResultsControl::try_from(c).ok())
+                });
+
+                if let Some(page_control) = page_control {
+                    *control_ref.write() = page_control;
+                    Poll::Ready(None)
+                } else {
+                    Poll::Ready(Some(Err(Error::InvalidResponse)))
+                }
+            } else {
+                Poll::Ready(None)
+            }
+        } else {
+            Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
+        }
+    }
+}
+
 impl Stream for SearchEntries {
     type Item = Result<Attributes>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
-            match Pin::new(&mut self.inner).poll_next(cx) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(None) => return Poll::Ready(Some(Err(Error::ConnectionClosed))),
+            let rc = match Pin::new(&mut self.inner).poll_next(cx) {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(None) => Poll::Ready(Some(Err(Error::ConnectionClosed))),
                 Poll::Ready(Some(msg)) => match msg.protocol_op {
                     ProtocolOp::SearchResEntry(item) => {
-                        return Poll::Ready(Some(Ok(item.attributes.into_iter().map(Into::into).collect())))
+                        Poll::Ready(Some(Ok(item.attributes.into_iter().map(Into::into).collect())))
                     }
-                    ProtocolOp::SearchResRef(_) => {}
-                    ProtocolOp::SearchResDone(done) => {
-                        if let Some(ref page_finished) = self.page_finished {
-                            *page_finished.write() = Some(true);
-                        }
-                        return if done.0.result_code == ResultCode::Success {
-                            if let Some(ref control_ref) = self.page_control {
-                                let page_control = msg.controls.and_then(|controls| {
-                                    controls
-                                        .into_iter()
-                                        .find(|c| c.control_type == PAGED_CONTROL_OID)
-                                        .and_then(|c| SimplePagedResultsControl::try_from(c).ok())
-                                });
-
-                                if let Some(page_control) = page_control {
-                                    *control_ref.write() = page_control;
-                                    Poll::Ready(None)
-                                } else {
-                                    Poll::Ready(Some(Err(Error::InvalidResponse)))
-                                }
-                            } else {
-                                Poll::Ready(None)
-                            }
-                        } else {
-                            Poll::Ready(Some(Err(Error::OperationFailed(done.0.into()))))
-                        };
-                    }
-                    _ => return Poll::Ready(Some(Err(Error::InvalidResponse))),
+                    ProtocolOp::SearchResRef(_) => continue,
+                    ProtocolOp::SearchResDone(done) => self.search_done(msg.controls, done),
+                    _ => Poll::Ready(Some(Err(Error::InvalidResponse))),
                 },
-            }
+            };
+            return rc;
         }
     }
 }
