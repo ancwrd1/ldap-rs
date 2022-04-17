@@ -2,7 +2,7 @@ use std::{
     convert::{TryFrom, TryInto},
     pin::Pin,
     sync::{
-        atomic::{AtomicU32, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
     task::{Context, Poll},
@@ -138,14 +138,14 @@ impl LdapClient {
         Ok(SearchEntries {
             inner: stream,
             page_control: None,
-            page_finished: None,
+            page_finished: Arc::new(AtomicBool::new(false)),
         })
     }
 
     pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> Pages {
         Pages {
             page_control: Arc::new(RwLock::new(SimplePagedResultsControl::new(page_size))),
-            page_finished: Arc::new(RwLock::new(None)),
+            page_finished: Arc::new(AtomicBool::new(true)),
             client: self.clone(),
             request,
             page_size,
@@ -156,7 +156,7 @@ impl LdapClient {
 
 pub struct Pages {
     page_control: Arc<RwLock<SimplePagedResultsControl>>,
-    page_finished: Arc<RwLock<Option<bool>>>,
+    page_finished: Arc<AtomicBool>,
     client: LdapClient,
     request: SearchRequest,
     page_size: u32,
@@ -165,7 +165,7 @@ pub struct Pages {
 
 impl Pages {
     fn is_page_finished(&self) -> bool {
-        self.page_finished.read().unwrap_or(true)
+        self.page_finished.load(Ordering::SeqCst)
     }
 }
 
@@ -188,7 +188,7 @@ impl Stream for Pages {
             let page_size = self.page_size;
             let page_finished = self.page_finished.clone();
 
-            *self.page_finished.write() = Some(false);
+            self.page_finished.store(false, Ordering::SeqCst);
 
             let fut = async move {
                 let id = client.new_id();
@@ -200,7 +200,7 @@ impl Stream for Pages {
                 Ok(SearchEntries {
                     inner: stream,
                     page_control: Some(control_ref),
-                    page_finished: Some(page_finished),
+                    page_finished,
                 })
             };
             self.inner = Some(Box::pin(fut));
@@ -220,7 +220,7 @@ impl Stream for Pages {
 pub struct SearchEntries {
     inner: MessageStream,
     page_control: Option<Arc<RwLock<SimplePagedResultsControl>>>,
-    page_finished: Option<Arc<RwLock<Option<bool>>>>,
+    page_finished: Arc<AtomicBool>,
 }
 
 impl SearchEntries {
@@ -229,9 +229,8 @@ impl SearchEntries {
         controls: Option<Controls>,
         done: SearchResultDone,
     ) -> Poll<Option<Result<Attributes>>> {
-        if let Some(ref page_finished) = self.page_finished {
-            *page_finished.write() = Some(true);
-        }
+        self.page_finished.store(true, Ordering::SeqCst);
+
         if done.0.result_code == ResultCode::Success {
             if let Some(ref control_ref) = self.page_control {
                 let page_control = controls.and_then(|controls| {
