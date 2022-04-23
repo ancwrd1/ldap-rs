@@ -1,13 +1,13 @@
 [package]
 name = "ldap-rs"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tokio-util = { version = "0.7", features = ["codec"] }
-tokio = { version = "1", features = ["net", "time"] }
+tokio = { version = "1", features = ["net", "time", "rt-multi-thread"] }
 bytes = "1"
 futures = "0.3"
 rasn-ldap = "0.5"
