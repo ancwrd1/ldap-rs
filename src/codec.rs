@@ -1,3 +1,5 @@
+//! LDAP protocol encoder and decoder
+
 use bytes::{Buf, BufMut, BytesMut};
 use log::{error, trace};
 use rasn::{ber, de::Decode};

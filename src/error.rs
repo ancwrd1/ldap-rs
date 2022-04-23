@@ -1,3 +1,5 @@
+//! LDAP errors
+
 use std::{error, fmt, io};
 
 use futures::channel::mpsc::SendError;
@@ -6,10 +8,14 @@ use rasn_ldap::{BindResponse, LdapResult, ResultCode};
 
 use crate::{channel::ChannelError, filter::Rule};
 
+/// LDAP operation error
 #[derive(Debug)]
 pub struct OperationError {
+    /// Result code
     pub result_code: ResultCode,
+    /// Matched DN
     pub matched_dn: String,
+    /// Diagnostic message
     pub diagnostic_message: String,
 }
 
@@ -33,6 +39,7 @@ impl From<LdapResult> for OperationError {
     }
 }
 
+/// LDAP errors
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),

@@ -1,3 +1,5 @@
+//! LDAP client module
+
 use std::{
     convert::{TryFrom, TryInto},
     pin::Pin,
@@ -26,6 +28,7 @@ use crate::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// LDAP client builder
 pub struct LdapClientBuilder {
     address: String,
     port: u16,
@@ -33,21 +36,25 @@ pub struct LdapClientBuilder {
 }
 
 impl LdapClientBuilder {
+    /// Set port number, default is 389
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
         self
     }
 
+    /// Set TLS options, default is plain connection
     pub fn tls_options(mut self, options: TlsOptions) -> Self {
         self.tls_options = options;
         self
     }
 
+    /// Build client and connect
     pub async fn connect(self) -> Result<LdapClient> {
         LdapClient::connect(self.address, self.port, self.tls_options).await
     }
 }
 
+/// LDAP client
 #[derive(Clone)]
 pub struct LdapClient {
     connection: LdapConnection,
@@ -55,6 +62,7 @@ pub struct LdapClient {
 }
 
 impl LdapClient {
+    /// Create client builder
     pub fn builder<A: AsRef<str>>(address: A) -> LdapClientBuilder {
         LdapClientBuilder {
             address: address.as_ref().to_owned(),
@@ -63,6 +71,7 @@ impl LdapClient {
         }
     }
 
+    /// Connect to the specified address and port using TLS options
     pub async fn connect<A>(address: A, port: u16, tls_options: TlsOptions) -> Result<Self>
     where
         A: AsRef<str>,
@@ -104,6 +113,7 @@ impl LdapClient {
         }
     }
 
+    /// Perform simple bind operation with username and password
     pub async fn simple_bind<U, P>(&mut self, username: U, password: P) -> Result<()>
     where
         U: AsRef<str>,
@@ -114,12 +124,14 @@ impl LdapClient {
         self.do_bind(req).await
     }
 
+    /// Perform SASL EXTERNAL bind
     pub async fn sasl_external_bind(&mut self) -> Result<()> {
         let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(b"EXTERNAL".to_vec().into(), None));
         let req = BindRequest::new(3, Default::default(), auth_choice);
         self.do_bind(req).await
     }
 
+    /// Perform unbind operation
     pub async fn unbind(&mut self) -> Result<()> {
         let id = self.new_id();
 
@@ -129,6 +141,7 @@ impl LdapClient {
         Ok(())
     }
 
+    /// Perform search operation without paging. Returns a stream of search entries
     pub async fn search(&mut self, request: SearchRequest) -> Result<SearchEntries> {
         let id = self.new_id();
 
@@ -142,6 +155,7 @@ impl LdapClient {
         })
     }
 
+    /// Perform search operation with paging. Returns a stream of pages
     pub fn search_paged(&mut self, request: SearchRequest, page_size: u32) -> Pages {
         Pages {
             page_control: Arc::new(RwLock::new(SimplePagedResultsControl::new(page_size))),
@@ -154,6 +168,7 @@ impl LdapClient {
     }
 }
 
+/// Pages represents a stream of paged search results
 pub struct Pages {
     page_control: Arc<RwLock<SimplePagedResultsControl>>,
     page_finished: Arc<AtomicBool>,
@@ -217,6 +232,7 @@ impl Stream for Pages {
     }
 }
 
+/// Search entries represents a stream of search results
 pub struct SearchEntries {
     inner: MessageStream,
     page_control: Option<Arc<RwLock<SimplePagedResultsControl>>>,

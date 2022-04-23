@@ -1,3 +1,5 @@
+//! LDAP connection options
+
 pub use native_tls::{Certificate, Identity};
 
 #[derive(Clone, PartialEq)]
@@ -7,6 +9,7 @@ pub(crate) enum TlsKind {
     StartTls,
 }
 
+/// TLS options
 #[derive(Clone)]
 pub struct TlsOptions {
     pub(crate) kind: TlsKind,
@@ -38,7 +41,7 @@ impl TlsOptions {
     }
 
     /// Connect using STARTTLS negotiation
-    pub fn starttls() -> Self {
+    pub fn start_tls() -> Self {
         Self::new(TlsKind::StartTls)
     }
 
@@ -48,7 +51,7 @@ impl TlsOptions {
         self
     }
 
-    /// Set client identity for TLS mutual authentication
+    /// Set client identity for mutual TLS authentication
     pub fn identity(mut self, identity: Identity) -> Self {
         self.identity = Some(identity);
         self

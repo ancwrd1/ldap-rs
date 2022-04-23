@@ -1,3 +1,5 @@
+//! LDAP request
+
 use std::time::Duration;
 
 use crate::{
@@ -6,6 +8,8 @@ use crate::{
     model::{SearchRequest, SearchRequestDerefAliases, SearchRequestScope},
 };
 
+/// LDAP search request builder
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchRequestBuilder {
     base_dn: String,
     scope: SearchRequestScope,
@@ -31,41 +35,49 @@ impl SearchRequestBuilder {
         }
     }
 
+    /// Set base DN
     pub fn base_dn<S: AsRef<str>>(mut self, base_dn: S) -> Self {
         self.base_dn = base_dn.as_ref().to_owned();
         self
     }
 
+    /// Set search scope
     pub fn scope(mut self, scope: SearchRequestScope) -> Self {
         self.scope = scope;
         self
     }
 
+    /// Set aliases dereference policy
     pub fn deref_aliases(mut self, deref_aliases: SearchRequestDerefAliases) -> Self {
         self.deref_aliases = deref_aliases;
         self
     }
 
+    /// Set search size limit
     pub fn size_limit(mut self, size_limit: u32) -> Self {
         self.size_limit = size_limit;
         self
     }
 
+    /// Set search time limit
     pub fn time_limit(mut self, time_limit: Duration) -> Self {
         self.time_limit = time_limit;
         self
     }
 
+    /// Set flag indicating to only search types
     pub fn types_only(mut self, types_only: bool) -> Self {
         self.types_only = types_only;
         self
     }
 
+    /// Set search filter
     pub fn filter<S: AsRef<str>>(mut self, filter: S) -> Self {
         self.filter = filter.as_ref().to_owned();
         self
     }
 
+    /// Specify attributes to return
     pub fn attributes<I, S>(mut self, attributes: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -76,6 +88,7 @@ impl SearchRequestBuilder {
         self
     }
 
+    /// Add attribute to return
     pub fn attribute<S>(mut self, attribute: S) -> Self
     where
         S: AsRef<str>,
@@ -84,6 +97,7 @@ impl SearchRequestBuilder {
         self
     }
 
+    /// Create a search request
     pub fn build(self) -> Result<SearchRequest, Error> {
         Ok(SearchRequest(rasn_ldap::SearchRequest::new(
             self.base_dn.into(),

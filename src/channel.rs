@@ -1,3 +1,5 @@
+//! Low-level LDAP channel operations
+
 use std::{io, net::ToSocketAddrs, time::Duration};
 
 use futures::{
@@ -34,6 +36,7 @@ where
     io::Error::new(io::ErrorKind::InvalidData, e)
 }
 
+/// LDAP channel errors
 #[derive(Debug, thiserror::Error)]
 pub enum ChannelError {
     #[error(transparent)]

@@ -1,3 +1,6 @@
+//! Asynchronous LDAP client which supports bind and search operations.
+//! It can connect using plain connection or TLS/STARTTLS.
+
 pub use bytes;
 pub use rasn_ldap;
 
