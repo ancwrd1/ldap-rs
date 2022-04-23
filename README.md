@@ -13,7 +13,7 @@ crate for all ASN.1 goodness.
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
 - [ ] All of the `ProtocolOp` client operations
-- [ ] Documentation
+- [x] Documentation
 
 ## Non-goals
 
