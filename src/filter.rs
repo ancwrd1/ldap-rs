@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-pub use bytes::Bytes;
+use bytes::Bytes;
 use once_cell::sync::Lazy;
 use pest::{
     iterators::{Pair, Pairs},
