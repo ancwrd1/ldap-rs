@@ -27,6 +27,14 @@ use crate::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+fn check_result(result: LdapResult) -> Result<()> {
+    if result.result_code == ResultCode::Success {
+        Ok(())
+    } else {
+        Err(Error::OperationFailed(result.into()))
+    }
+}
+
 /// LDAP client builder
 pub struct LdapClientBuilder {
     address: String,
@@ -86,14 +94,6 @@ impl LdapClient {
         self.id_counter.fetch_add(1, Ordering::SeqCst)
     }
 
-    fn check_result(&self, result: LdapResult) -> Result<()> {
-        if result.result_code == ResultCode::Success {
-            Ok(())
-        } else {
-            Err(Error::OperationFailed(result.into()))
-        }
-    }
-
     async fn do_bind(&mut self, req: BindRequest) -> Result<()> {
         let id = self.new_id();
         let msg = LdapMessage::new(id, ProtocolOp::BindRequest(req));
@@ -101,7 +101,7 @@ impl LdapClient {
         let item = self.connection.send_recv(msg).await?;
 
         match item.protocol_op {
-            ProtocolOp::BindResponse(resp) => Ok(self.check_result(LdapResult::new(
+            ProtocolOp::BindResponse(resp) => Ok(check_result(LdapResult::new(
                 resp.result_code,
                 resp.matched_dn,
                 resp.diagnostic_message,

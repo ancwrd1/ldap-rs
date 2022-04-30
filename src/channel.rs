@@ -36,6 +36,50 @@ where
     io::Error::new(io::ErrorKind::InvalidData, e)
 }
 
+fn make_channel<S>(stream: S) -> (LdapMessageSender, LdapMessageReceiver)
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    // construct framed instance based on LdapCodec
+    let framed = tokio_util::codec::Framed::new(stream, LdapCodec);
+
+    // The 'in' channel:
+    // Messages received from the socket will be forwarded to tx_in
+    // and received by the external client via rx_in endpoint
+    let (tx_in, rx_in) = mpsc::channel(CHANNEL_SIZE);
+
+    // The 'out' channel:
+    // Messages sent to tx_out by external clients will be picked up on rx_out endpoint
+    // and forwarded to socket
+    let (tx_out, rx_out) = mpsc::channel(CHANNEL_SIZE);
+
+    let channel = async move {
+        // sink is the sending part, stream is the receiving part
+        let (mut sink, stream) = framed.split();
+
+        // we receive LdapMessage messages from the clients and convert to stream chunks
+        let mut rx = rx_out.map(Ok::<_, Error>);
+
+        // app -> socket
+        let to_wire = sink.send_all(&mut rx);
+
+        // convert incoming channel errors into io::Error
+        let mut tx = tx_in.sink_map_err(io_error);
+
+        // app <- socket
+        let from_wire = stream.map_err(io_error).forward(&mut tx);
+
+        // await for either of futures: terminating one side will drop the other
+        future::select(to_wire, from_wire).await;
+    };
+
+    // spawn in the background
+    tokio::spawn(channel);
+
+    // we return (tx_out, rx_in) pair so that the consumer can send and receive messages
+    (tx_out, rx_in)
+}
+
 /// LDAP channel errors
 #[derive(Debug, thiserror::Error)]
 pub enum ChannelError {
@@ -80,11 +124,12 @@ impl LdapChannel {
 
         debug!("Connection established to {}", address);
 
-        match tls_options.kind {
-            TlsKind::Plain => self.make_channel(stream),
-            TlsKind::Tls => self.make_channel(self.tls_connect(tls_options, stream).await?),
-            TlsKind::StartTls => self.make_channel(self.starttls_connect(tls_options, stream).await?),
-        }
+        let channel = match tls_options.kind {
+            TlsKind::Plain => make_channel(stream),
+            TlsKind::Tls => make_channel(self.tls_connect(tls_options, stream).await?),
+            TlsKind::StartTls => make_channel(self.starttls_connect(tls_options, stream).await?),
+        };
+        Ok(channel)
     }
 
     async fn starttls_connect<S>(&self, tls_options: TlsOptions, mut stream: S) -> ChannelResult<TlsStream<S>>
@@ -142,50 +187,6 @@ impl LdapChannel {
         debug!("Handshake completed with {}", self.address);
 
         Ok(stream)
-    }
-
-    fn make_channel<S>(&self, stream: S) -> ChannelResult<(LdapMessageSender, LdapMessageReceiver)>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        // construct framed instance based on LdapCodec
-        let framed = tokio_util::codec::Framed::new(stream, LdapCodec);
-
-        // The 'in' channel:
-        // Messages received from the socket will be forwarded to tx_in
-        // and received by the external client via rx_in endpoint
-        let (tx_in, rx_in) = mpsc::channel(CHANNEL_SIZE);
-
-        // The 'out' channel:
-        // Messages sent to tx_out by external clients will be picked up on rx_out endpoint
-        // and forwarded to socket
-        let (tx_out, rx_out) = mpsc::channel(CHANNEL_SIZE);
-
-        let channel = async move {
-            // sink is the sending part, stream is the receiving part
-            let (mut sink, stream) = framed.split();
-
-            // we receive LdapMessage messages from the clients and convert to stream chunks
-            let mut rx = rx_out.map(Ok::<_, Error>);
-
-            // app -> socket
-            let to_wire = sink.send_all(&mut rx);
-
-            // convert incoming channel errors into io::Error
-            let mut tx = tx_in.sink_map_err(io_error);
-
-            // app <- socket
-            let from_wire = stream.map_err(io_error).forward(&mut tx);
-
-            // await for either of futures: terminating one side will drop the other
-            let _ = future::select(to_wire, from_wire).await;
-        };
-
-        // spawn in the background
-        tokio::spawn(channel);
-
-        // we return (tx_out, rx_in) pair so that the consumer can send and receive messages
-        Ok((tx_out, rx_in))
     }
 }
 

@@ -197,9 +197,9 @@ mod tests {
             ),
         ];
 
-        test_filters.iter().for_each(|f| {
+        for f in test_filters {
             assert_eq!(parse_filter(f.0).unwrap(), f.1);
-        });
+        }
     }
 
     #[test]
