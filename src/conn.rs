@@ -19,12 +19,13 @@ use crate::{
 };
 
 const NOTICE_OF_DISCONNECTION_OID: &[u8] = b"1.3.6.1.4.1.1466.20036";
+const CHANNEL_SIZE: usize = 1024;
 
-type ClientMap = Arc<RwLock<HashMap<u32, LdapMessageSender>>>;
+type RequestMap = Arc<RwLock<HashMap<u32, LdapMessageSender>>>;
 
 #[derive(Clone)]
 pub(crate) struct LdapConnection {
-    clients: ClientMap,
+    requests: RequestMap,
     channel_sender: LdapMessageSender,
 }
 
@@ -36,11 +37,11 @@ impl LdapConnection {
         let (channel_sender, mut channel_receiver) =
             LdapChannel::for_client(address, port).connect(tls_options).await?;
         let connection = Self {
-            clients: ClientMap::default(),
+            requests: RequestMap::default(),
             channel_sender,
         };
 
-        let clients = connection.clients.clone();
+        let requests = connection.requests.clone();
 
         tokio::spawn(async move {
             while let Some(msg) = channel_receiver.next().await {
@@ -53,7 +54,7 @@ impl LdapConnection {
                         break;
                     }
                     _ => {
-                        let sender = clients.read().get(&msg.message_id).cloned();
+                        let sender = requests.read().get(&msg.message_id).cloned();
                         if let Some(mut sender) = sender {
                             let _ = sender.send(msg).await;
                         }
@@ -69,12 +70,12 @@ impl LdapConnection {
         let id = msg.message_id;
         self.channel_sender.send(msg).await?;
 
-        let (tx, rx) = mpsc::channel(1);
-        self.clients.write().insert(id, tx);
+        let (tx, rx) = mpsc::channel(CHANNEL_SIZE);
+        self.requests.write().insert(id, tx);
 
         Ok(MessageStream {
             id,
-            clients: self.clients.clone(),
+            requests: self.requests.clone(),
             receiver: rx,
         })
     }
@@ -95,7 +96,7 @@ impl LdapConnection {
 
 pub(crate) struct MessageStream {
     id: u32,
-    clients: ClientMap,
+    requests: RequestMap,
     receiver: LdapMessageReceiver,
 }
 
@@ -109,6 +110,6 @@ impl Stream for MessageStream {
 
 impl Drop for MessageStream {
     fn drop(&mut self) {
-        self.clients.write().remove(&self.id);
+        self.requests.write().remove(&self.id);
     }
 }
