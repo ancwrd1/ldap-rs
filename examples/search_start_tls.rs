@@ -4,6 +4,8 @@ use ldap_rs::{LdapClient, SearchRequest, SearchRequestDerefAliases, SearchReques
 
 #[tokio::main]
 async fn main() {
+    pretty_env_logger::init_timed();
+
     let mut client = LdapClient::builder("ldap.forumsys.com")
         .tls_options(TlsOptions::start_tls().verify_certs(false))
         .connect()

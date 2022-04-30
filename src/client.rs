@@ -11,7 +11,6 @@ use std::{
 };
 
 use futures::{future::BoxFuture, Future, Stream};
-use log::trace;
 use parking_lot::RwLock;
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, Controls, LdapMessage, LdapResult, ProtocolOp, SaslCredentials,
@@ -99,9 +98,7 @@ impl LdapClient {
         let id = self.new_id();
         let msg = LdapMessage::new(id, ProtocolOp::BindRequest(req));
 
-        trace!("Sending message: {:?}", msg);
         let item = self.connection.send_recv(msg).await?;
-        trace!("Received message: {:?}", item);
 
         match item.protocol_op {
             ProtocolOp::BindResponse(resp) => Ok(self.check_result(LdapResult::new(

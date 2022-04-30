@@ -22,7 +22,7 @@ impl Decoder for LdapCodec {
                 let len = decoder.decoded_len();
                 drop(decoder);
                 src.advance(len);
-                trace!("Decoded request: {} bytes", len);
+                trace!("Decoded message of {} bytes: {:?}", len, msg);
                 Ok(Some(msg))
             }
             Err(ber::de::Error::Incomplete { needed }) => {
@@ -41,6 +41,7 @@ impl Encoder<LdapMessage> for LdapCodec {
     type Error = Error;
 
     fn encode(&mut self, item: LdapMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        trace!("Encoding message: {:?}", item);
         let encoded = ber::encode(&item)?;
         dst.reserve(encoded.len());
         dst.put_slice(&encoded);
