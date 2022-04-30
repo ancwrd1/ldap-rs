@@ -15,6 +15,10 @@ impl Decoder for LdapCodec {
     type Error = Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if !src.has_remaining() {
+            return Ok(None);
+        }
+
         let mut decoder = ber::de::Decoder::new(src, ber::de::DecoderOptions::ber());
 
         match LdapMessage::decode(&mut decoder) {
