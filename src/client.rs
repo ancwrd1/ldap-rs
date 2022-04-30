@@ -20,7 +20,7 @@ use rasn_ldap::{
 
 use crate::{
     conn::{LdapConnection, MessageStream},
-    controls::{SimplePagedResultsControl, PAGED_CONTROL_OID},
+    controls::SimplePagedResultsControl,
     error::Error,
     model::*,
     options::TlsOptions,
@@ -252,7 +252,7 @@ impl SearchEntries {
                 let page_control = controls.and_then(|controls| {
                     controls
                         .into_iter()
-                        .find(|c| c.control_type == PAGED_CONTROL_OID)
+                        .find(|c| c.control_type == SimplePagedResultsControl::OID)
                         .and_then(|c| SimplePagedResultsControl::try_from(c).ok())
                 });
 

@@ -7,8 +7,6 @@ use rasn_ldap::Control;
 
 use crate::error::Error;
 
-pub const PAGED_CONTROL_OID: &[u8] = b"1.2.840.113556.1.4.319";
-
 /// Simple paged result control, OID 1.2.840.113556.1.4.319
 #[derive(AsnType, Encode, Decode, Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct SimplePagedResultsControl {
@@ -18,6 +16,9 @@ pub struct SimplePagedResultsControl {
 }
 
 impl SimplePagedResultsControl {
+    /// Control OID
+    pub const OID: &'static [u8] = b"1.2.840.113556.1.4.319";
+
     /// Create paged result control with a given page size
     pub fn new(size: u32) -> Self {
         Self {
@@ -66,7 +67,7 @@ impl TryFrom<SimplePagedResultsControl> for Control {
             cookie: control.cookie,
         };
         Ok(Control::new(
-            PAGED_CONTROL_OID.to_vec().into(),
+            SimplePagedResultsControl::OID.to_vec().into(),
             false,
             Some(ber::encode(&value)?.into()),
         ))
