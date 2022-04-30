@@ -163,7 +163,10 @@ impl LdapChannel {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        debug!("Performing TLS handshake with {}", self.address);
+        let domain = tls_options.domain_name.as_deref().unwrap_or(&self.address);
+
+        debug!("Performing TLS handshake with domain name {}", domain);
+
         let mut tls_builder = native_tls::TlsConnector::builder();
         for cert in tls_options.ca_certs {
             tls_builder.add_root_certificate(cert);
@@ -180,11 +183,11 @@ impl LdapChannel {
         let tokio_connector = tokio_native_tls::TlsConnector::from(connector);
 
         let stream = tokio_connector
-            .connect(&self.address, stream)
+            .connect(domain, stream)
             .await
             .map_err(ChannelError::Tls)?;
 
-        debug!("Handshake completed with {}", self.address);
+        debug!("Handshake completed with domain name {}", domain);
 
         Ok(stream)
     }

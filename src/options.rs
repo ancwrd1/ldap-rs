@@ -17,6 +17,7 @@ pub struct TlsOptions {
     pub(crate) verify_hostname: bool,
     pub(crate) verify_certs: bool,
     pub(crate) identity: Option<Identity>,
+    pub(crate) domain_name: Option<String>,
 }
 
 impl TlsOptions {
@@ -27,6 +28,7 @@ impl TlsOptions {
             verify_hostname: true,
             verify_certs: true,
             identity: None,
+            domain_name: None,
         }
     }
 
@@ -54,6 +56,12 @@ impl TlsOptions {
     /// Set client identity for mutual TLS authentication
     pub fn identity(mut self, identity: Identity) -> Self {
         self.identity = Some(identity);
+        self
+    }
+
+    /// Specify custom domain name to use for SNI match. The default is the connection host name
+    pub fn domain_name<S: AsRef<str>>(mut self, domain_name: S) -> Self {
+        self.domain_name = Some(domain_name.as_ref().to_owned());
         self
     }
 
