@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["ldap_rs"] = [{"text":"impl Stream for <a class=\"struct\" href=\"ldap_rs/client/struct.Pages.html\" title=\"struct ldap_rs::client::Pages\">Pages</a>","synthetic":false,"types":["ldap_rs::client::Pages"]},{"text":"impl Stream for <a class=\"struct\" href=\"ldap_rs/client/struct.SearchEntries.html\" title=\"struct ldap_rs::client::SearchEntries\">SearchEntries</a>","synthetic":false,"types":["ldap_rs::client::SearchEntries"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

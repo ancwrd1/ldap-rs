@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","LDAP errors"]],"struct":[["OperationError","LDAP operation error"]]});
