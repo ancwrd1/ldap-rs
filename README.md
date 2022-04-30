@@ -6,6 +6,8 @@ This project aims to provide a minimal working LDAP client written in Rust.
 It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/XAMPPRocky/rasn)
 crate for all ASN.1 goodness.
 
+For TLS connections a `native-tls` crate is used.
+
 ## Roadmap
 
 - [x] Simple bind with username and password
