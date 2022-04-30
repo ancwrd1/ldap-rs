@@ -15,7 +15,7 @@ For TLS connections a `native-tls` crate is used.
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
 - [ ] All of the `ProtocolOp` client operations
-- [x] Documentation
+- [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
 
 ## Non-goals
 
