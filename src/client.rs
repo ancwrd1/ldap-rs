@@ -126,7 +126,7 @@ impl LdapClient {
 
     /// Perform SASL EXTERNAL bind
     pub async fn sasl_external_bind(&mut self) -> Result<()> {
-        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(b"EXTERNAL".to_vec().into(), None));
+        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new("EXTERNAL".into(), None));
         let req = BindRequest::new(3, Default::default(), auth_choice);
         self.do_bind(req).await
     }

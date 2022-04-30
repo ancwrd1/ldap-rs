@@ -36,7 +36,7 @@ pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
 }
 
 fn as_bytes(pair: &RulePair) -> Bytes {
-    pair.as_str().as_bytes().to_vec().into()
+    Bytes::copy_from_slice(pair.as_str().as_bytes())
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -111,10 +111,7 @@ mod tests {
         let test_filters = vec![
             (
                 r#"(cn=Babs Jensen\30\30\01)"#,
-                Filter::EqualityMatch(AttributeValueAssertion::new(
-                    "cn".into(),
-                    b"Babs Jensen00\x01".to_vec().into(),
-                )),
+                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen00\x01".into())),
             ),
             (
                 "(cn=Babs Jensen)",
@@ -135,7 +132,7 @@ mod tests {
                     Filter::Or(BTreeSet::from([
                         Filter::EqualityMatch(AttributeValueAssertion::new("sn".into(), "Jensen".into())),
                         Filter::Substrings(SubstringFilter::new(
-                            b"cn".to_vec().into(),
+                            "cn".into(),
                             vec![SubstringChoice::Initial("Babs J".into())],
                         )),
                     ])),
@@ -144,7 +141,7 @@ mod tests {
             (
                 "(o=univ*of*mich*end)",
                 Filter::Substrings(SubstringFilter::new(
-                    b"o".to_vec().into(),
+                    "o".into(),
                     vec![
                         SubstringChoice::Initial("univ".into()),
                         SubstringChoice::Any("of".into()),

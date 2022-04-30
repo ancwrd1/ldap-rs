@@ -67,7 +67,7 @@ impl TryFrom<SimplePagedResultsControl> for Control {
             cookie: control.cookie,
         };
         Ok(Control::new(
-            SimplePagedResultsControl::OID.to_vec().into(),
+            SimplePagedResultsControl::OID.into(),
             false,
             Some(ber::encode(&value)?.into()),
         ))

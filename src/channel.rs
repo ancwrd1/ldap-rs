@@ -94,7 +94,7 @@ impl LdapChannel {
         debug!("Starting STARTTLS negotiation");
         let mut framed = tokio_util::codec::Framed::new(&mut stream, LdapCodec);
         let req = ExtendedRequest {
-            request_name: STARTTLS_OID.to_vec().into(),
+            request_name: STARTTLS_OID.into(),
             request_value: None,
         };
         framed
