@@ -8,7 +8,7 @@ use rasn_ldap::Control;
 use crate::error::Error;
 
 /// Simple paged result control, OID 1.2.840.113556.1.4.319
-#[derive(AsnType, Encode, Decode, Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct SimplePagedResultsControl {
     size: Integer,
     cookie: OctetString,
