@@ -9,39 +9,34 @@ use pest::{
 use pest_derive::Parser;
 use rasn::prelude::*;
 use rasn_ldap::{AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
-use regex::bytes::{Captures, Regex};
+use regex::{Captures, Regex};
 
 use crate::error::Error;
 
 type RulePair<'a> = Pair<'a, Rule>;
 type RulePairs<'a> = Pairs<'a, Rule>;
 
+fn unescape(s: &str) -> Cow<str> {
+    static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\\([\da-fA-F]{2})"#).unwrap());
+
+    HEX_RE.replace_all(s, |caps: &Captures| {
+        // unwrap is justified here by the regex expression
+        (u8::from_str_radix(&caps[1], 16).unwrap() as char).to_string()
+    })
+}
+
 #[derive(Parser)]
 #[grammar = "filter.pest"]
 pub(crate) struct FilterParser;
 
 pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
-    let mut parsed = FilterParser::parse(Rule::rfc2254, filter.as_ref())?;
+    let unescaped = unescape(filter.as_ref());
+    let mut parsed = FilterParser::parse(Rule::rfc2254, &unescaped)?;
     Ok(parse_rule(parsed.next().expect("No top level rule")))
 }
 
-fn to_nibble(b: u8) -> u8 {
-    match b {
-        b'0'..=b'9' => b - b'0',
-        b'a'..=b'f' => 10 + b - b'a',
-        b'A'..=b'F' => 10 + b - b'F',
-        _ => panic!("Unexpected regex value"),
-    }
-}
-fn unescape(value: &[u8]) -> Cow<[u8]> {
-    static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(\\[\da-fA-F]{2})"#).unwrap());
-    HEX_RE.replace_all(value, |caps: &Captures| {
-        [(to_nibble(caps[1][1]) << 4) + to_nibble(caps[1][2])]
-    })
-}
-
 fn as_bytes(pair: &RulePair) -> Bytes {
-    unescape(pair.as_str().as_bytes()).into_owned().into()
+    pair.as_str().as_bytes().to_vec().into()
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -115,10 +110,10 @@ mod tests {
     fn test_parser() {
         let test_filters = vec![
             (
-                r#"(cn=Babs Jensen\30\30)"#,
+                r#"(cn=Babs Jensen\30\30\01)"#,
                 Filter::EqualityMatch(AttributeValueAssertion::new(
                     "cn".into(),
-                    b"Babs Jensen00".to_vec().into(),
+                    b"Babs Jensen00\x01".to_vec().into(),
                 )),
             ),
             (
@@ -212,15 +207,15 @@ mod tests {
 
     #[test]
     fn test_unescape() {
-        let hex = r#"hello\20\77\6f\72\6c\64"#;
-        let decoded = unescape(hex.as_bytes());
-        assert_eq!(*decoded, *b"hello world");
+        let hex = r#"hello\20\77\6f\72\6c\64\00\01"#;
+        let decoded = unescape(hex);
+        assert_eq!(decoded, "hello world\u{0000}\u{0001}");
     }
 
     #[test]
     fn test_unescape_bad_pattern() {
         let hex = r#"hello\\gg"#;
-        let decoded = unescape(hex.as_bytes());
-        assert_eq!(*decoded, *b"hello\\\\gg");
+        let decoded = unescape(hex);
+        assert_eq!(decoded, "hello\\\\gg");
     }
 }
