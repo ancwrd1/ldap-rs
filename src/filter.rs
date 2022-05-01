@@ -109,8 +109,8 @@ mod tests {
     fn test_parser() {
         let test_filters = vec![
             (
-                r#"(cn=Babs Jensen\2a\30\30\01)"#,
-                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen*00\x01".into())),
+                r#"(cn=Babs Jensen\2a\30T\30\01)"#,
+                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen*0T0\x01".into())),
             ),
             ("(cn=*)", Filter::Present("cn".into())),
             (
@@ -195,6 +195,12 @@ mod tests {
         for f in test_filters {
             assert_eq!(parse_filter(f.0).unwrap(), f.1);
         }
+    }
+
+    #[test]
+    fn test_bad_filter() {
+        let filter = "(objectClass=a\\00test\\bx\\dd\\\\12)";
+        assert!(parse_filter(filter).is_err());
     }
 
     #[test]
