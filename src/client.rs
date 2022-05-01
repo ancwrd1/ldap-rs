@@ -13,7 +13,7 @@ use std::{
 use futures::{future::BoxFuture, Future, Stream};
 use parking_lot::RwLock;
 use rasn_ldap::{
-    AuthenticationChoice, BindRequest, Controls, LdapMessage, LdapResult, ProtocolOp, SaslCredentials,
+    AuthenticationChoice, BindRequest, Controls, LdapMessage, LdapResult, ProtocolOp, ResultCode, SaslCredentials,
     SearchResultDone, UnbindRequest,
 };
 
@@ -21,8 +21,9 @@ use crate::{
     conn::{LdapConnection, MessageStream},
     controls::SimplePagedResultsControl,
     error::Error,
-    model::*,
+    model::Attributes,
     options::TlsOptions,
+    request::SearchRequest,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

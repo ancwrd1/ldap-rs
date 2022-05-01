@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::{
     error::Error,
     filter::parse_filter,
-    model::{SearchRequest, SearchRequestDerefAliases, SearchRequestScope},
+    model::{SearchRequestDerefAliases, SearchRequestScope},
 };
 
 /// LDAP search request builder
@@ -109,5 +109,27 @@ impl SearchRequestBuilder {
             parse_filter(self.filter)?,
             self.attributes.into_iter().map(Into::into).collect(),
         )))
+    }
+}
+
+/// Search request
+#[derive(Clone, Debug, PartialEq)]
+pub struct SearchRequest(pub(crate) rasn_ldap::SearchRequest);
+
+impl SearchRequest {
+    /// Create search request  builder
+    pub fn builder() -> SearchRequestBuilder {
+        SearchRequestBuilder::new()
+    }
+
+    /// Create search request to query root DSE object
+    pub fn root_dse() -> Self {
+        Self::builder().filter("(objectClass=*)").build().unwrap()
+    }
+}
+
+impl From<SearchRequest> for rasn_ldap::SearchRequest {
+    fn from(req: SearchRequest) -> Self {
+        req.0
     }
 }

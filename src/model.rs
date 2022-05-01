@@ -1,31 +1,7 @@
 //! Data structures
 
 use bytes::Bytes;
-pub use rasn_ldap::{ChangeOperation, ResultCode, SearchRequestDerefAliases, SearchRequestScope};
-
-use crate::SearchRequestBuilder;
-
-/// Search request
-#[derive(Clone, Debug, PartialEq)]
-pub struct SearchRequest(pub(crate) rasn_ldap::SearchRequest);
-
-impl SearchRequest {
-    /// Create search request  builder
-    pub fn builder() -> SearchRequestBuilder {
-        SearchRequestBuilder::new()
-    }
-
-    /// Create search request to query root DSE object
-    pub fn root_dse() -> Self {
-        Self::builder().filter("(objectClass=*)").build().unwrap()
-    }
-}
-
-impl From<SearchRequest> for rasn_ldap::SearchRequest {
-    fn from(req: SearchRequest) -> Self {
-        req.0
-    }
-}
+pub use rasn_ldap::{ResultCode, SearchRequestDerefAliases, SearchRequestScope};
 
 /// LDAP attribute definition
 #[derive(Clone, Debug, PartialEq)]

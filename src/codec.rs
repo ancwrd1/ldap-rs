@@ -8,6 +8,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::error::Error;
 
+/// LDAP codec
 pub struct LdapCodec;
 
 impl Decoder for LdapCodec {
@@ -45,8 +46,8 @@ impl Encoder<LdapMessage> for LdapCodec {
     type Error = Error;
 
     fn encode(&mut self, item: LdapMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        trace!("Encoding message: {:?}", item);
         let encoded = ber::encode(&item)?;
+        trace!("Encoded message of {} bytes: {:?}", encoded.len(), item);
         dst.reserve(encoded.len());
         dst.put_slice(&encoded);
         Ok(())
