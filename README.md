@@ -15,12 +15,13 @@ For TLS connections the `native-tls` crate is used.
 - [x] SASL EXTERNAL bind
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
-- [ ] More of the `ProtocolOp` client operations
 - [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
+- [ ] `rustls` support via optional feature flag
+- [ ] More of the `ProtocolOp` client operations
 
 ## Non-goals
 
-* Kerberos or SASL binds: use TLS instead
+* SASL layer (Kerberos, MD5, etc)
 * Server-side implementation
 
 ## Usage 

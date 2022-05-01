@@ -67,6 +67,7 @@ impl TlsOptions {
 
     /// Enable or disable host name validation in the server certificate.
     /// By default host name validation is enabled.
+    /// This option is only used when certificate verification is enabled.
     pub fn verify_hostname(mut self, flag: bool) -> Self {
         self.verify_hostname = flag;
         self
