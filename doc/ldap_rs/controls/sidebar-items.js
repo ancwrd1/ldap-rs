@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["PAGED_CONTROL_OID",""]],"struct":[["SimplePagedResultsControl","Simple paged result control, OID 1.2.840.113556.1.4.319"]]});
+initSidebarItems({"struct":[["SimplePagedResultsControl","Simple paged result control, OID 1.2.840.113556.1.4.319"]]});

@@ -27,58 +27,10 @@
 <span id="22">22</span>
 <span id="23">23</span>
 <span id="24">24</span>
-<span id="25">25</span>
-<span id="26">26</span>
-<span id="27">27</span>
-<span id="28">28</span>
-<span id="29">29</span>
-<span id="30">30</span>
-<span id="31">31</span>
-<span id="32">32</span>
-<span id="33">33</span>
-<span id="34">34</span>
-<span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
-<span id="48">48</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Data structures</span>
 
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rasn_ldap</span>::{<span class="ident">ChangeOperation</span>, <span class="ident">ResultCode</span>, <span class="ident">SearchRequestDerefAliases</span>, <span class="ident">SearchRequestScope</span>};
-
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::SearchRequestBuilder</span>;
-
-<span class="doccomment">/// Search request</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SearchRequest</span>(<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">rasn_ldap::SearchRequest</span>);
-
-<span class="kw">impl</span> <span class="ident">SearchRequest</span> {
-    <span class="doccomment">/// Create search request  builder</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">builder</span>() -&gt; <span class="ident">SearchRequestBuilder</span> {
-        <span class="ident">SearchRequestBuilder::new</span>()
-    }
-
-    <span class="doccomment">/// Create search request to query root DSE object</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">root_dse</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::builder</span>().<span class="ident">filter</span>(<span class="string">&quot;(objectClass=*)&quot;</span>).<span class="ident">build</span>().<span class="ident">unwrap</span>()
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SearchRequest</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">rasn_ldap::SearchRequest</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">req</span>: <span class="ident">SearchRequest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">req</span>.<span class="number">0</span>
-    }
-}
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rasn_ldap</span>::{<span class="ident">ResultCode</span>, <span class="ident">SearchRequestDerefAliases</span>, <span class="ident">SearchRequestScope</span>};
 
 <span class="doccomment">/// LDAP attribute definition</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>)]</span>

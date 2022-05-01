@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["ldap_rs"] = [{"text":"impl AsnType for <a class=\"struct\" href=\"ldap_rs/controls/struct.SimplePagedResultsControl.html\" title=\"struct ldap_rs::controls::SimplePagedResultsControl\">SimplePagedResultsControl</a>","synthetic":false,"types":["ldap_rs::controls::SimplePagedResultsControl"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

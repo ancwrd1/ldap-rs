@@ -266,6 +266,10 @@
 <span id="261">261</span>
 <span id="262">262</span>
 <span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Low-level LDAP channel operations</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>, <span class="ident">net::ToSocketAddrs</span>, <span class="ident">time::Duration</span>};
@@ -302,6 +306,50 @@
     <span class="ident">E</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std::error::Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 {
     <span class="ident">io::Error::new</span>(<span class="ident">io::ErrorKind::InvalidData</span>, <span class="ident">e</span>)
+}
+
+<span class="kw">fn</span> <span class="ident">make_channel</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="ident">stream</span>: <span class="ident">S</span>) -&gt; (<span class="ident">LdapMessageSender</span>, <span class="ident">LdapMessageReceiver</span>)
+<span class="kw">where</span>
+    <span class="ident">S</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+{
+    <span class="comment">// construct framed instance based on LdapCodec</span>
+    <span class="kw">let</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">tokio_util::codec::Framed::new</span>(<span class="ident">stream</span>, <span class="ident">LdapCodec</span>);
+
+    <span class="comment">// The &#39;in&#39; channel:</span>
+    <span class="comment">// Messages received from the socket will be forwarded to tx_in</span>
+    <span class="comment">// and received by the external client via rx_in endpoint</span>
+    <span class="kw">let</span> (<span class="ident">tx_in</span>, <span class="ident">rx_in</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">CHANNEL_SIZE</span>);
+
+    <span class="comment">// The &#39;out&#39; channel:</span>
+    <span class="comment">// Messages sent to tx_out by external clients will be picked up on rx_out endpoint</span>
+    <span class="comment">// and forwarded to socket</span>
+    <span class="kw">let</span> (<span class="ident">tx_out</span>, <span class="ident">rx_out</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">CHANNEL_SIZE</span>);
+
+    <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="kw">async</span> <span class="kw">move</span> {
+        <span class="comment">// sink is the sending part, stream is the receiving part</span>
+        <span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">sink</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="ident">framed</span>.<span class="ident">split</span>();
+
+        <span class="comment">// we receive LdapMessage messages from the clients and convert to stream chunks</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rx</span> <span class="op">=</span> <span class="ident">rx_out</span>.<span class="ident">map</span>(<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>);
+
+        <span class="comment">// app -&gt; socket</span>
+        <span class="kw">let</span> <span class="ident">to_wire</span> <span class="op">=</span> <span class="ident">sink</span>.<span class="ident">send_all</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rx</span>);
+
+        <span class="comment">// convert incoming channel errors into io::Error</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tx</span> <span class="op">=</span> <span class="ident">tx_in</span>.<span class="ident">sink_map_err</span>(<span class="ident">io_error</span>);
+
+        <span class="comment">// app &lt;- socket</span>
+        <span class="kw">let</span> <span class="ident">from_wire</span> <span class="op">=</span> <span class="ident">stream</span>.<span class="ident">map_err</span>(<span class="ident">io_error</span>).<span class="ident">forward</span>(<span class="kw-2">&amp;mut</span> <span class="ident">tx</span>);
+
+        <span class="comment">// await for either of futures: terminating one side will drop the other</span>
+        <span class="ident">future::select</span>(<span class="ident">to_wire</span>, <span class="ident">from_wire</span>).<span class="kw">await</span>;
+    };
+
+    <span class="comment">// spawn in the background</span>
+    <span class="ident">tokio::spawn</span>(<span class="ident">channel</span>);
+
+    <span class="comment">// we return (tx_out, rx_in) pair so that the consumer can send and receive messages</span>
+    (<span class="ident">tx_out</span>, <span class="ident">rx_in</span>)
 }
 
 <span class="doccomment">/// LDAP channel errors</span>
@@ -348,11 +396,12 @@
 
         <span class="macro">debug!</span>(<span class="string">&quot;Connection established to {}&quot;</span>, <span class="ident">address</span>);
 
-        <span class="kw">match</span> <span class="ident">tls_options</span>.<span class="ident">kind</span> {
-            <span class="ident">TlsKind::Plain</span> =&gt; <span class="self">self</span>.<span class="ident">make_channel</span>(<span class="ident">stream</span>),
-            <span class="ident">TlsKind::Tls</span> =&gt; <span class="self">self</span>.<span class="ident">make_channel</span>(<span class="self">self</span>.<span class="ident">tls_connect</span>(<span class="ident">tls_options</span>, <span class="ident">stream</span>).<span class="kw">await</span><span class="question-mark">?</span>),
-            <span class="ident">TlsKind::StartTls</span> =&gt; <span class="self">self</span>.<span class="ident">make_channel</span>(<span class="self">self</span>.<span class="ident">starttls_connect</span>(<span class="ident">tls_options</span>, <span class="ident">stream</span>).<span class="kw">await</span><span class="question-mark">?</span>),
-        }
+        <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">tls_options</span>.<span class="ident">kind</span> {
+            <span class="ident">TlsKind::Plain</span> =&gt; <span class="ident">make_channel</span>(<span class="ident">stream</span>),
+            <span class="ident">TlsKind::Tls</span> =&gt; <span class="ident">make_channel</span>(<span class="self">self</span>.<span class="ident">tls_connect</span>(<span class="ident">tls_options</span>, <span class="ident">stream</span>).<span class="kw">await</span><span class="question-mark">?</span>),
+            <span class="ident">TlsKind::StartTls</span> =&gt; <span class="ident">make_channel</span>(<span class="self">self</span>.<span class="ident">starttls_connect</span>(<span class="ident">tls_options</span>, <span class="ident">stream</span>).<span class="kw">await</span><span class="question-mark">?</span>),
+        };
+        <span class="prelude-val">Ok</span>(<span class="ident">channel</span>)
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">starttls_connect</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tls_options</span>: <span class="ident">TlsOptions</span>, <span class="kw-2">mut</span> <span class="ident">stream</span>: <span class="ident">S</span>) -&gt; <span class="ident">ChannelResult</span><span class="op">&lt;</span><span class="ident">TlsStream</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>
@@ -362,7 +411,7 @@
         <span class="macro">debug!</span>(<span class="string">&quot;Starting STARTTLS negotiation&quot;</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">tokio_util::codec::Framed::new</span>(<span class="kw-2">&amp;mut</span> <span class="ident">stream</span>, <span class="ident">LdapCodec</span>);
         <span class="kw">let</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">ExtendedRequest</span> {
-            <span class="ident">request_name</span>: <span class="ident">STARTTLS_OID</span>.<span class="ident">to_vec</span>().<span class="ident">into</span>(),
+            <span class="ident">request_name</span>: <span class="ident">STARTTLS_OID</span>.<span class="ident">into</span>(),
             <span class="ident">request_value</span>: <span class="prelude-val">None</span>,
         };
         <span class="ident">framed</span>
@@ -386,7 +435,10 @@
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     {
-        <span class="macro">debug!</span>(<span class="string">&quot;Performing TLS handshake with {}&quot;</span>, <span class="self">self</span>.<span class="ident">address</span>);
+        <span class="kw">let</span> <span class="ident">domain</span> <span class="op">=</span> <span class="ident">tls_options</span>.<span class="ident">domain_name</span>.<span class="ident">as_deref</span>().<span class="ident">unwrap_or</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">address</span>);
+
+        <span class="macro">debug!</span>(<span class="string">&quot;Performing TLS handshake with domain name {}&quot;</span>, <span class="ident">domain</span>);
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tls_builder</span> <span class="op">=</span> <span class="ident">native_tls::TlsConnector::builder</span>();
         <span class="kw">for</span> <span class="ident">cert</span> <span class="kw">in</span> <span class="ident">tls_options</span>.<span class="ident">ca_certs</span> {
             <span class="ident">tls_builder</span>.<span class="ident">add_root_certificate</span>(<span class="ident">cert</span>);
@@ -403,57 +455,13 @@
         <span class="kw">let</span> <span class="ident">tokio_connector</span> <span class="op">=</span> <span class="ident">tokio_native_tls::TlsConnector::from</span>(<span class="ident">connector</span>);
 
         <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">tokio_connector</span>
-            .<span class="ident">connect</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">address</span>, <span class="ident">stream</span>)
+            .<span class="ident">connect</span>(<span class="ident">domain</span>, <span class="ident">stream</span>)
             .<span class="kw">await</span>
             .<span class="ident">map_err</span>(<span class="ident">ChannelError::Tls</span>)<span class="question-mark">?</span>;
 
-        <span class="macro">debug!</span>(<span class="string">&quot;Handshake completed with {}&quot;</span>, <span class="self">self</span>.<span class="ident">address</span>);
+        <span class="macro">debug!</span>(<span class="string">&quot;Handshake completed with domain name {}&quot;</span>, <span class="ident">domain</span>);
 
         <span class="prelude-val">Ok</span>(<span class="ident">stream</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">make_channel</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">stream</span>: <span class="ident">S</span>) -&gt; <span class="ident">ChannelResult</span><span class="op">&lt;</span>(<span class="ident">LdapMessageSender</span>, <span class="ident">LdapMessageReceiver</span>)<span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">AsyncWrite</span> <span class="op">+</span> <span class="ident">Unpin</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    {
-        <span class="comment">// construct framed instance based on LdapCodec</span>
-        <span class="kw">let</span> <span class="ident">framed</span> <span class="op">=</span> <span class="ident">tokio_util::codec::Framed::new</span>(<span class="ident">stream</span>, <span class="ident">LdapCodec</span>);
-
-        <span class="comment">// The &#39;in&#39; channel:</span>
-        <span class="comment">// Messages received from the socket will be forwarded to tx_in</span>
-        <span class="comment">// and received by the external client via rx_in endpoint</span>
-        <span class="kw">let</span> (<span class="ident">tx_in</span>, <span class="ident">rx_in</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">CHANNEL_SIZE</span>);
-
-        <span class="comment">// The &#39;out&#39; channel:</span>
-        <span class="comment">// Messages sent to tx_out by external clients will be picked up on rx_out endpoint</span>
-        <span class="comment">// and forwarded to socket</span>
-        <span class="kw">let</span> (<span class="ident">tx_out</span>, <span class="ident">rx_out</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">CHANNEL_SIZE</span>);
-
-        <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="kw">async</span> <span class="kw">move</span> {
-            <span class="comment">// sink is the sending part, stream is the receiving part</span>
-            <span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">sink</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="ident">framed</span>.<span class="ident">split</span>();
-
-            <span class="comment">// we receive LdapMessage messages from the clients and convert to stream chunks</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rx</span> <span class="op">=</span> <span class="ident">rx_out</span>.<span class="ident">map</span>(<span class="prelude-val">Ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">Error</span><span class="op">&gt;</span>);
-
-            <span class="comment">// app -&gt; socket</span>
-            <span class="kw">let</span> <span class="ident">to_wire</span> <span class="op">=</span> <span class="ident">sink</span>.<span class="ident">send_all</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rx</span>);
-
-            <span class="comment">// convert incoming channel errors into io::Error</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tx</span> <span class="op">=</span> <span class="ident">tx_in</span>.<span class="ident">sink_map_err</span>(<span class="ident">io_error</span>);
-
-            <span class="comment">// app &lt;- socket</span>
-            <span class="kw">let</span> <span class="ident">from_wire</span> <span class="op">=</span> <span class="ident">stream</span>.<span class="ident">map_err</span>(<span class="ident">io_error</span>).<span class="ident">forward</span>(<span class="kw-2">&amp;mut</span> <span class="ident">tx</span>);
-
-            <span class="comment">// await for either of futures: terminating one side will drop the other</span>
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">future::select</span>(<span class="ident">to_wire</span>, <span class="ident">from_wire</span>).<span class="kw">await</span>;
-        };
-
-        <span class="comment">// spawn in the background</span>
-        <span class="ident">tokio::spawn</span>(<span class="ident">channel</span>);
-
-        <span class="comment">// we return (tx_out, rx_in) pair so that the consumer can send and receive messages</span>
-        <span class="prelude-val">Ok</span>((<span class="ident">tx_out</span>, <span class="ident">rx_in</span>))
     }
 }
 

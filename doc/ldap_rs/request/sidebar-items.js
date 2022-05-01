@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["SearchRequestBuilder","LDAP search request builder"]]});
+initSidebarItems({"struct":[["SearchRequest","Search request"],["SearchRequestBuilder","LDAP search request builder"]]});
