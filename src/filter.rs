@@ -30,13 +30,12 @@ fn unescape(s: &str) -> Cow<str> {
 pub(crate) struct FilterParser;
 
 pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
-    let unescaped = unescape(filter.as_ref());
-    let mut parsed = FilterParser::parse(Rule::rfc2254, &unescaped)?;
+    let mut parsed = FilterParser::parse(Rule::rfc2254, filter.as_ref())?;
     Ok(parse_rule(parsed.next().expect("No top level rule")))
 }
 
 fn as_bytes(pair: &RulePair) -> Bytes {
-    Bytes::copy_from_slice(pair.as_str().as_bytes())
+    Bytes::copy_from_slice(unescape(pair.as_str()).as_bytes())
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -110,12 +109,8 @@ mod tests {
     fn test_parser() {
         let test_filters = vec![
             (
-                r#"(cn=Babs Jensen\30\30\01)"#,
-                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen00\x01".into())),
-            ),
-            (
-                "(cn=Babs Jensen)",
-                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen".into())),
+                r#"(cn=Babs Jensen\2a\30\30\01)"#,
+                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen*00\x01".into())),
             ),
             ("(cn=*)", Filter::Present("cn".into())),
             (
