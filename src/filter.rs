@@ -198,8 +198,26 @@ mod tests {
     }
 
     #[test]
-    fn test_bad_filter() {
-        let filter = "(objectClass=a\\00test\\bx\\dd\\\\12)";
+    fn test_bad_filter_1() {
+        let filter = r#"(objectClass=a\00test\bx\dd\\12)"#;
+        assert!(parse_filter(filter).is_err());
+    }
+
+    #[test]
+    fn test_bad_filter_2() {
+        let filter = r#"(objectClass=\\CC)"#;
+        assert!(parse_filter(filter).is_err());
+    }
+
+    #[test]
+    fn test_bad_filter_3() {
+        let filter = r#"(objectClass=\CC\\)"#;
+        assert!(parse_filter(filter).is_err());
+    }
+
+    #[test]
+    fn test_bad_filter_4() {
+        let filter = r#"(objectClass=\aav\bb\0n)"#;
         assert!(parse_filter(filter).is_err());
     }
 
