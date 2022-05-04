@@ -4,6 +4,8 @@ use ldap_rs::{LdapClient, SearchRequest, SearchRequestDerefAliases, SearchReques
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pretty_env_logger::init_timed();
+
     let mut client = LdapClient::builder("myldap.intranet.lan")
         .port(636)
         .tls_options(TlsOptions::tls())

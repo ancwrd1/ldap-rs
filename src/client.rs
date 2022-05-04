@@ -13,8 +13,8 @@ use std::{
 use futures::{future::BoxFuture, Future, Stream};
 use parking_lot::RwLock;
 use rasn_ldap::{
-    AuthenticationChoice, BindRequest, Controls, LdapMessage, LdapResult, ProtocolOp, ResultCode, SaslCredentials,
-    SearchResultDone, UnbindRequest,
+    AuthenticationChoice, BindRequest, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode,
+    SaslCredentials, SearchResultDone, UnbindRequest,
 };
 
 use crate::{
@@ -25,6 +25,8 @@ use crate::{
     options::TlsOptions,
     request::SearchRequest,
 };
+
+const WHOAMI_OID: &str = "1.3.6.1.4.1.4203.1.11.3";
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -128,14 +130,41 @@ impl LdapClient {
         self.do_bind(req).await
     }
 
-    /// Perform unbind operation
-    pub async fn unbind(&mut self) -> Result<()> {
+    /// Perform unbind operation and terminate the client
+    pub async fn unbind(mut self) -> Result<()> {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::UnbindRequest(UnbindRequest));
         self.connection.send(msg).await?;
 
         Ok(())
+    }
+
+    /// Send 'whoami' extended request (RFC4532)
+    pub async fn whoami(&mut self) -> Result<Option<String>> {
+        let id = self.new_id();
+
+        let msg = LdapMessage::new(
+            id,
+            ProtocolOp::ExtendedReq(ExtendedRequest {
+                request_name: WHOAMI_OID.into(),
+                request_value: None,
+            }),
+        );
+
+        let resp = self.connection.send_recv(msg).await?;
+
+        match resp.protocol_op {
+            ProtocolOp::ExtendedResp(resp) => {
+                check_result(LdapResult::new(
+                    resp.result_code,
+                    resp.matched_dn,
+                    resp.diagnostic_message,
+                ))?;
+                Ok(resp.response_value.map(|v| String::from_utf8_lossy(&v).into_owned()))
+            }
+            _ => Err(Error::InvalidResponse),
+        }
     }
 
     /// Perform search operation without paging. Returns a stream of search entries
