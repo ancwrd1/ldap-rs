@@ -294,7 +294,6 @@
 <span id="289">289</span>
 <span id="290">290</span>
 <span id="291">291</span>
-<span id="292">292</span>
 </pre><pre class="rust"><code><span class="doccomment">//! LDAP client module</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -376,8 +375,7 @@
         }
     }
 
-    <span class="doccomment">/// Connect to the specified address and port using TLS options</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">connect</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="ident">address</span>: <span class="ident">A</span>, <span class="ident">port</span>: <span class="ident">u16</span>, <span class="ident">tls_options</span>: <span class="ident">TlsOptions</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">connect</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="ident">address</span>: <span class="ident">A</span>, <span class="ident">port</span>: <span class="ident">u16</span>, <span class="ident">tls_options</span>: <span class="ident">TlsOptions</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">A</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span>,
     {

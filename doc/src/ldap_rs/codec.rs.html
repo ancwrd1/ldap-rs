@@ -55,12 +55,7 @@
 <span id="50">50</span>
 <span id="51">51</span>
 <span id="52">52</span>
-<span id="53">53</span>
-<span id="54">54</span>
-<span id="55">55</span>
-</pre><pre class="rust"><code><span class="doccomment">//! LDAP protocol encoder and decoder</span>
-
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Buf</span>, <span class="ident">BufMut</span>, <span class="ident">BytesMut</span>};
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Buf</span>, <span class="ident">BufMut</span>, <span class="ident">BytesMut</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">error</span>, <span class="ident">trace</span>};
 <span class="kw">use</span> <span class="ident">rasn</span>::{<span class="ident">ber</span>, <span class="ident">de::Decode</span>};
 <span class="kw">use</span> <span class="ident">rasn_ldap::LdapMessage</span>;
@@ -68,8 +63,7 @@
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::error::Error</span>;
 
-<span class="doccomment">/// LDAP codec</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LdapCodec</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">LdapCodec</span>;
 
 <span class="kw">impl</span> <span class="ident">Decoder</span> <span class="kw">for</span> <span class="ident">LdapCodec</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">LdapMessage</span>;
