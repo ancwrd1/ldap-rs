@@ -16,5 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.unbind().await?;
     println!("Unbind succeeded!");
 
+    println!("{:?}", client.whoami().await);
+
     Ok(())
 }

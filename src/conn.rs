@@ -61,6 +61,8 @@ impl LdapConnection {
                     }
                 }
             }
+            debug!("Connection terminated");
+            requests.write().clear();
         });
 
         Ok(connection)

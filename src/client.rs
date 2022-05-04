@@ -130,8 +130,8 @@ impl LdapClient {
         self.do_bind(req).await
     }
 
-    /// Perform unbind operation and terminate the client
-    pub async fn unbind(mut self) -> Result<()> {
+    /// Perform unbind operation. This will instruct LDAP server to terminate the connection
+    pub async fn unbind(&mut self) -> Result<()> {
         let id = self.new_id();
 
         let msg = LdapMessage::new(id, ProtocolOp::UnbindRequest(UnbindRequest));
