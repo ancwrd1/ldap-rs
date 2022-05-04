@@ -1,5 +1,3 @@
-//! LDAP protocol encoder and decoder
-
 use bytes::{Buf, BufMut, BytesMut};
 use log::{error, trace};
 use rasn::{ber, de::Decode};
@@ -8,8 +6,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::error::Error;
 
-/// LDAP codec
-pub struct LdapCodec;
+pub(crate) struct LdapCodec;
 
 impl Decoder for LdapCodec {
     type Item = LdapMessage;

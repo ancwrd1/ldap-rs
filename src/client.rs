@@ -79,8 +79,7 @@ impl LdapClient {
         }
     }
 
-    /// Connect to the specified address and port using TLS options
-    pub async fn connect<A>(address: A, port: u16, tls_options: TlsOptions) -> Result<Self>
+    pub(crate) async fn connect<A>(address: A, port: u16, tls_options: TlsOptions) -> Result<Self>
     where
         A: AsRef<str>,
     {

@@ -8,7 +8,7 @@ use futures::{
     sink::SinkExt,
     StreamExt, TryStreamExt,
 };
-use log::{debug, error};
+use log::{debug, error, warn};
 use rasn_ldap::{ExtendedRequest, LdapMessage, ProtocolOp, ResultCode};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -24,10 +24,11 @@ use crate::{
 
 const CHANNEL_SIZE: usize = 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const STARTTLS_TIMEOUT: Duration = Duration::from_secs(30);
 const STARTTLS_OID: &[u8] = b"1.3.6.1.4.1.1466.20037";
 
-pub type LdapMessageSender = Sender<LdapMessage>;
-pub type LdapMessageReceiver = Receiver<LdapMessage>;
+pub(crate) type LdapMessageSender = Sender<LdapMessage>;
+pub(crate) type LdapMessageReceiver = Receiver<LdapMessage>;
 
 fn io_error<E>(e: E) -> io::Error
 where
@@ -93,10 +94,10 @@ pub enum ChannelError {
     StartTlsFailed,
 }
 
-pub type ChannelResult<T> = Result<T, ChannelError>;
+pub(crate) type ChannelResult<T> = Result<T, ChannelError>;
 
 /// LDAP TCP channel connector
-pub struct LdapChannel {
+pub(crate) struct LdapChannel {
     address: String,
     port: u16,
 }
@@ -136,7 +137,7 @@ impl LdapChannel {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        debug!("Starting STARTTLS negotiation");
+        debug!("Begin STARTTLS negotiation");
         let mut framed = tokio_util::codec::Framed::new(&mut stream, LdapCodec);
         let req = ExtendedRequest {
             request_name: STARTTLS_OID.into(),
@@ -146,16 +147,23 @@ impl LdapChannel {
             .send(LdapMessage::new(1, ProtocolOp::ExtendedReq(req)))
             .await
             .map_err(|_| ChannelError::StartTlsFailed)?;
-        if let Some(Ok(item)) = framed.next().await {
-            match item.protocol_op {
+        match tokio::time::timeout(STARTTLS_TIMEOUT, framed.next()).await {
+            Ok(Some(Ok(item))) => match item.protocol_op {
                 ProtocolOp::ExtendedResp(resp) if resp.result_code == ResultCode::Success && item.message_id == 1 => {
-                    debug!("STARTTLS succeeded");
+                    debug!("End STARTTLS negotiation, switching protocols");
                     return self.tls_connect(tls_options, stream).await;
                 }
-                _ => {}
+                _ => {
+                    warn!("Unexpected STARTTLS response: {:?}", item);
+                }
+            },
+            Err(_) => {
+                warn!("Timeout occurred while waiting for STARTTLS reply");
+            }
+            _ => {
+                warn!("STARTTLS negotiation failed");
             }
         }
-        debug!("STARTTLS failed");
         Err(ChannelError::StartTlsFailed)
     }
 
