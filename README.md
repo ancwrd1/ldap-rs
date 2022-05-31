@@ -7,7 +7,7 @@ and clean code.
 It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/XAMPPRocky/rasn)
 crate for all ASN.1 goodness.
 
-For TLS connections the `native-tls` crate is used.
+For TLS connections currently the `native-tls` crate is used.
 
 ## Roadmap
 

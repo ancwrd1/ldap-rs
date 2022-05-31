@@ -1,5 +1,4 @@
-//! LDAP asynchronous client library for Rust which supports bind and search operations.
-//! It supports plain connections, TLS and STARTTLS.
+#![doc = include_str!("../README.md")]
 
 pub use bytes;
 pub use rasn_ldap;
