@@ -9,20 +9,32 @@ use pest::{
 use pest_derive::Parser;
 use rasn::prelude::*;
 use rasn_ldap::{AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
-use regex::{Captures, Regex};
+use regex::bytes::{Captures, Regex};
 
 use crate::error::Error;
 
 type RulePair<'a> = Pair<'a, Rule>;
 type RulePairs<'a> = Pairs<'a, Rule>;
 
-fn unescape(s: &str) -> Cow<str> {
+#[inline]
+fn nibble_to_bin(nibble: u8) -> u8 {
+    match nibble {
+        b'0'..=b'9' => nibble - b'0',
+        b'a'..=b'f' => nibble - b'a' + 10,
+        b'A'..=b'F' => nibble - b'A' + 10,
+        _ => panic!("Unexpected value"),
+    }
+}
+
+#[inline]
+fn byte_to_bin(data: &[u8]) -> u8 {
+    (nibble_to_bin(data[0]) << 4) | nibble_to_bin(data[1])
+}
+
+fn unescape(s: &[u8]) -> Cow<[u8]> {
     static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\\([\da-fA-F]{2})"#).unwrap());
 
-    HEX_RE.replace_all(s, |caps: &Captures| {
-        // unwrap is justified here by the regex expression
-        (u8::from_str_radix(&caps[1], 16).unwrap() as char).to_string()
-    })
+    HEX_RE.replace_all(s, |caps: &Captures| [byte_to_bin(&caps[1])])
 }
 
 #[derive(Parser)]
@@ -35,7 +47,7 @@ pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
 }
 
 fn as_bytes(pair: &RulePair) -> Bytes {
-    Bytes::copy_from_slice(unescape(pair.as_str()).as_bytes())
+    Bytes::copy_from_slice(&unescape(pair.as_str().as_bytes()))
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -111,6 +123,15 @@ mod tests {
             (
                 r#"(cn=Babs Jensen\2a\30T\30\01)"#,
                 Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen*0T0\x01".into())),
+            ),
+            (
+                r#"(objectSid=\01\05\00\00\00\00\00\05\15\00\00\00B\c9\b5+\b7\a79\87\16\0c\d4\a5\01\02\00\00)"#,
+                Filter::EqualityMatch(AttributeValueAssertion::new(
+                    "objectSid".into(),
+                    b"\x01\x05\0\0\0\0\0\x05\x15\0\0\0B\xc9\xb5+\xb7\xa79\x87\x16\x0c\xd4\xa5\x01\x02\0\0"
+                        .to_vec()
+                        .into(),
+                )),
             ),
             ("(cn=*)", Filter::Present("cn".into())),
             (
@@ -224,14 +245,14 @@ mod tests {
     #[test]
     fn test_unescape() {
         let hex = r#"hello\20\77\6f\72\6c\64\00\01"#;
-        let decoded = unescape(hex);
-        assert_eq!(decoded, "hello world\u{0000}\u{0001}");
+        let decoded = unescape(hex.as_bytes());
+        assert_eq!(decoded, "hello world\u{0000}\u{0001}".as_bytes());
     }
 
     #[test]
     fn test_unescape_bad_pattern() {
         let hex = r#"hello\\gg"#;
-        let decoded = unescape(hex);
-        assert_eq!(decoded, "hello\\\\gg");
+        let decoded = unescape(hex.as_bytes());
+        assert_eq!(decoded.as_ref(), b"hello\\\\gg");
     }
 }
