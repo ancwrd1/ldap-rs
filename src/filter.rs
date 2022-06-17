@@ -47,7 +47,7 @@ pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
 }
 
 fn as_bytes(pair: &RulePair) -> Bytes {
-    Bytes::copy_from_slice(&unescape(pair.as_str().as_bytes()))
+    unescape(pair.as_str().as_bytes()).into_owned().into()
 }
 
 fn as_inner(pair: RulePair) -> RulePair {
@@ -244,15 +244,15 @@ mod tests {
 
     #[test]
     fn test_unescape() {
-        let hex = r#"hello\20\77\6f\72\6c\64\00\01"#;
-        let decoded = unescape(hex.as_bytes());
-        assert_eq!(decoded, "hello world\u{0000}\u{0001}".as_bytes());
+        let hex = br#"hello\20\77\6f\72\6c\64\00\01"#;
+        let decoded = unescape(hex);
+        assert_eq!(decoded.as_ref(), b"hello world\x00\x01");
     }
 
     #[test]
     fn test_unescape_bad_pattern() {
-        let hex = r#"hello\\gg"#;
-        let decoded = unescape(hex.as_bytes());
+        let hex = br#"hello\\gg"#;
+        let decoded = unescape(hex);
         assert_eq!(decoded.as_ref(), b"hello\\\\gg");
     }
 }
