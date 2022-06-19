@@ -23,11 +23,10 @@ use crate::{
     controls::SimplePagedResultsControl,
     error::Error,
     model::Attributes,
+    oid,
     options::TlsOptions,
     request::SearchRequest,
 };
-
-const WHOAMI_OID: &str = "1.3.6.1.4.1.4203.1.11.3";
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -148,7 +147,7 @@ impl LdapClient {
         let msg = LdapMessage::new(
             id,
             ProtocolOp::ExtendedReq(ExtendedRequest {
-                request_name: WHOAMI_OID.into(),
+                request_name: oid::WHOAMI_OID.into(),
                 request_value: None,
             }),
         );

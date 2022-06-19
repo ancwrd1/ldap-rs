@@ -19,13 +19,13 @@ use tokio_native_tls::TlsStream;
 use crate::{
     codec::LdapCodec,
     error::Error,
+    oid,
     options::{TlsKind, TlsOptions},
 };
 
 const CHANNEL_SIZE: usize = 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const STARTTLS_TIMEOUT: Duration = Duration::from_secs(30);
-const STARTTLS_OID: &[u8] = b"1.3.6.1.4.1.1466.20037";
 
 pub(crate) type LdapMessageSender = Sender<LdapMessage>;
 pub(crate) type LdapMessageReceiver = Receiver<LdapMessage>;
@@ -140,7 +140,7 @@ impl LdapChannel {
         debug!("Begin STARTTLS negotiation");
         let mut framed = tokio_util::codec::Framed::new(&mut stream, LdapCodec);
         let req = ExtendedRequest {
-            request_name: STARTTLS_OID.into(),
+            request_name: oid::STARTTLS_OID.into(),
             request_value: None,
         };
         framed

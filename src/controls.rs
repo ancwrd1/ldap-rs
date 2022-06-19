@@ -17,7 +17,7 @@ pub struct SimplePagedResultsControl {
 
 impl SimplePagedResultsControl {
     /// Control OID
-    pub const OID: &'static [u8] = b"1.2.840.113556.1.4.319";
+    pub const OID: &'static [u8] = crate::oid::SIMPLE_PAGED_RESULTS_CONTROL_OID;
 
     /// Create paged result control with a given page size
     pub fn new(size: u32) -> Self {

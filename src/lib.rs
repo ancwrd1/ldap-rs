@@ -17,5 +17,6 @@ pub mod client;
 pub mod controls;
 pub mod error;
 pub mod model;
+pub mod oid;
 pub mod options;
 pub mod request;

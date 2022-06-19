@@ -14,11 +14,11 @@ use parking_lot::RwLock;
 use crate::{
     channel::{LdapChannel, LdapMessageReceiver, LdapMessageSender},
     error::Error,
+    oid,
     rasn_ldap::{LdapMessage, ProtocolOp},
     TlsOptions,
 };
 
-const NOTICE_OF_DISCONNECTION_OID: &[u8] = b"1.3.6.1.4.1.1466.20036";
 const CHANNEL_SIZE: usize = 1024;
 
 type RequestMap = Arc<RwLock<HashMap<u32, LdapMessageSender>>>;
@@ -48,7 +48,7 @@ impl LdapConnection {
                 match msg.protocol_op {
                     ProtocolOp::ExtendedResp(resp)
                         if msg.message_id == 0
-                            && resp.response_name.as_deref() == Some(NOTICE_OF_DISCONNECTION_OID) =>
+                            && resp.response_name.as_deref() == Some(oid::NOTICE_OF_DISCONNECTION_OID) =>
                     {
                         debug!("Notice of disconnection received, exiting");
                         break;
