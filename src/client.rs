@@ -1,6 +1,7 @@
 //! LDAP client module
 
 use std::{
+    collections::VecDeque,
     convert::{TryFrom, TryInto},
     pin::Pin,
     sync::{
@@ -10,7 +11,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::{future::BoxFuture, Future, Stream};
+use futures::{future::BoxFuture, Future, Stream, TryStreamExt};
 use parking_lot::RwLock;
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode,
@@ -179,6 +180,13 @@ impl LdapClient {
             page_control: None,
             page_finished: Arc::new(AtomicBool::new(false)),
         })
+    }
+
+    /// Perform search operation without paging and return one result
+    pub async fn search_one(&mut self, request: SearchRequest) -> Result<Option<Attributes>> {
+        let entries = self.search(request).await?;
+        let mut attrs = entries.try_collect::<VecDeque<_>>().await?;
+        Ok(attrs.pop_front())
     }
 
     /// Perform search operation with paging. Returns a stream of pages
