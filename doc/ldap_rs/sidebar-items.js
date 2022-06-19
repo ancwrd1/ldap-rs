@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["client","LDAP client module"],["controls","LDAP controls"],["error","LDAP errors"],["model","Data structures"],["options","LDAP connection options"],["request","LDAP request"]]});
+initSidebarItems({"mod":[["client","LDAP client module"],["controls","LDAP controls"],["error","LDAP errors"],["model","Data structures"],["oid","OID definitions"],["options","LDAP connection options"],["request","LDAP request"]]});

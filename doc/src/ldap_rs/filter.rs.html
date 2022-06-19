@@ -240,6 +240,27 @@
 <span id="235">235</span>
 <span id="236">236</span>
 <span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
 
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
@@ -251,20 +272,32 @@
 <span class="kw">use</span> <span class="ident">pest_derive::Parser</span>;
 <span class="kw">use</span> <span class="ident">rasn::prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">rasn_ldap</span>::{<span class="ident">AttributeValueAssertion</span>, <span class="ident">Filter</span>, <span class="ident">MatchingRuleAssertion</span>, <span class="ident">SubstringChoice</span>, <span class="ident">SubstringFilter</span>};
-<span class="kw">use</span> <span class="ident">regex</span>::{<span class="ident">Captures</span>, <span class="ident">Regex</span>};
+<span class="kw">use</span> <span class="ident">regex::bytes</span>::{<span class="ident">Captures</span>, <span class="ident">Regex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::error::Error</span>;
 
 <span class="kw">type</span> <span class="ident">RulePair</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Pair</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Rule</span><span class="op">&gt;</span>;
 <span class="kw">type</span> <span class="ident">RulePairs</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Pairs</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Rule</span><span class="op">&gt;</span>;
 
-<span class="kw">fn</span> <span class="ident">unescape</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">Cow</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span> {
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">fn</span> <span class="ident">nibble_to_bin</span>(<span class="ident">nibble</span>: <span class="ident">u8</span>) -&gt; <span class="ident">u8</span> {
+    <span class="kw">match</span> <span class="ident">nibble</span> {
+        <span class="string">b&#39;0&#39;</span>..<span class="op">=</span><span class="string">b&#39;9&#39;</span> =&gt; <span class="ident">nibble</span> <span class="op">-</span> <span class="string">b&#39;0&#39;</span>,
+        <span class="string">b&#39;a&#39;</span>..<span class="op">=</span><span class="string">b&#39;f&#39;</span> =&gt; <span class="ident">nibble</span> <span class="op">-</span> <span class="string">b&#39;a&#39;</span> <span class="op">+</span> <span class="number">10</span>,
+        <span class="string">b&#39;A&#39;</span>..<span class="op">=</span><span class="string">b&#39;F&#39;</span> =&gt; <span class="ident">nibble</span> <span class="op">-</span> <span class="string">b&#39;A&#39;</span> <span class="op">+</span> <span class="number">10</span>,
+        <span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Unexpected value&quot;</span>),
+    }
+}
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">fn</span> <span class="ident">byte_to_bin</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">u8</span> {
+    (<span class="ident">nibble_to_bin</span>(<span class="ident">data</span>[<span class="number">0</span>]) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">nibble_to_bin</span>(<span class="ident">data</span>[<span class="number">1</span>])
+}
+
+<span class="kw">fn</span> <span class="ident">unescape</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">Cow</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
     <span class="kw">static</span> <span class="ident">HEX_RE</span>: <span class="ident">Lazy</span><span class="op">&lt;</span><span class="ident">Regex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Lazy::new</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Regex::new</span>(<span class="string">r#&quot;\\([\da-fA-F]{2})&quot;#</span>).<span class="ident">unwrap</span>());
 
-    <span class="ident">HEX_RE</span>.<span class="ident">replace_all</span>(<span class="ident">s</span>, <span class="op">|</span><span class="ident">caps</span>: <span class="kw-2">&amp;</span><span class="ident">Captures</span><span class="op">|</span> {
-        <span class="comment">// unwrap is justified here by the regex expression</span>
-        (<span class="ident">u8::from_str_radix</span>(<span class="kw-2">&amp;</span><span class="ident">caps</span>[<span class="number">1</span>], <span class="number">16</span>).<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">char</span>).<span class="ident">to_string</span>()
-    })
+    <span class="ident">HEX_RE</span>.<span class="ident">replace_all</span>(<span class="ident">s</span>, <span class="op">|</span><span class="ident">caps</span>: <span class="kw-2">&amp;</span><span class="ident">Captures</span><span class="op">|</span> [<span class="ident">byte_to_bin</span>(<span class="kw-2">&amp;</span><span class="ident">caps</span>[<span class="number">1</span>])])
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Parser</span>)]</span>
@@ -277,7 +310,7 @@
 }
 
 <span class="kw">fn</span> <span class="ident">as_bytes</span>(<span class="ident">pair</span>: <span class="kw-2">&amp;</span><span class="ident">RulePair</span>) -&gt; <span class="ident">Bytes</span> {
-    <span class="ident">Bytes::copy_from_slice</span>(<span class="ident">unescape</span>(<span class="ident">pair</span>.<span class="ident">as_str</span>()).<span class="ident">as_bytes</span>())
+    <span class="ident">unescape</span>(<span class="ident">pair</span>.<span class="ident">as_str</span>().<span class="ident">as_bytes</span>()).<span class="ident">into_owned</span>().<span class="ident">into</span>()
 }
 
 <span class="kw">fn</span> <span class="ident">as_inner</span>(<span class="ident">pair</span>: <span class="ident">RulePair</span>) -&gt; <span class="ident">RulePair</span> {
@@ -353,6 +386,15 @@
             (
                 <span class="string">r#&quot;(cn=Babs Jensen\2a\30T\30\01)&quot;#</span>,
                 <span class="ident">Filter::EqualityMatch</span>(<span class="ident">AttributeValueAssertion::new</span>(<span class="string">&quot;cn&quot;</span>.<span class="ident">into</span>(), <span class="string">&quot;Babs Jensen*0T0\x01&quot;</span>.<span class="ident">into</span>())),
+            ),
+            (
+                <span class="string">r#&quot;(objectSid=\01\05\00\00\00\00\00\05\15\00\00\00B\c9\b5+\b7\a79\87\16\0c\d4\a5\01\02\00\00)&quot;#</span>,
+                <span class="ident">Filter::EqualityMatch</span>(<span class="ident">AttributeValueAssertion::new</span>(
+                    <span class="string">&quot;objectSid&quot;</span>.<span class="ident">into</span>(),
+                    <span class="string">b&quot;\x01\x05\0\0\0\0\0\x05\x15\0\0\0B\xc9\xb5+\xb7\xa79\x87\x16\x0c\xd4\xa5\x01\x02\0\0&quot;</span>
+                        .<span class="ident">to_vec</span>()
+                        .<span class="ident">into</span>(),
+                )),
             ),
             (<span class="string">&quot;(cn=*)&quot;</span>, <span class="ident">Filter::Present</span>(<span class="string">&quot;cn&quot;</span>.<span class="ident">into</span>())),
             (
@@ -465,16 +507,16 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_unescape</span>() {
-        <span class="kw">let</span> <span class="ident">hex</span> <span class="op">=</span> <span class="string">r#&quot;hello\20\77\6f\72\6c\64\00\01&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">hex</span> <span class="op">=</span> <span class="string">br#&quot;hello\20\77\6f\72\6c\64\00\01&quot;#</span>;
         <span class="kw">let</span> <span class="ident">decoded</span> <span class="op">=</span> <span class="ident">unescape</span>(<span class="ident">hex</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">decoded</span>, <span class="string">&quot;hello world\u{0000}\u{0001}&quot;</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">decoded</span>.<span class="ident">as_ref</span>(), <span class="string">b&quot;hello world\x00\x01&quot;</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_unescape_bad_pattern</span>() {
-        <span class="kw">let</span> <span class="ident">hex</span> <span class="op">=</span> <span class="string">r#&quot;hello\\gg&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">hex</span> <span class="op">=</span> <span class="string">br#&quot;hello\\gg&quot;#</span>;
         <span class="kw">let</span> <span class="ident">decoded</span> <span class="op">=</span> <span class="ident">unescape</span>(<span class="ident">hex</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">decoded</span>, <span class="string">&quot;hello\\\\gg&quot;</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">decoded</span>.<span class="ident">as_ref</span>(), <span class="string">b&quot;hello\\\\gg&quot;</span>);
     }
 }
 </code></pre></div>

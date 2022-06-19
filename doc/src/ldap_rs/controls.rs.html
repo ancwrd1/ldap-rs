@@ -112,7 +112,7 @@
 
 <span class="kw">impl</span> <span class="ident">SimplePagedResultsControl</span> {
     <span class="doccomment">/// Control OID</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">OID</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;1.2.840.113556.1.4.319&quot;</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">OID</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::oid::SIMPLE_PAGED_RESULTS_CONTROL_OID</span>;
 
     <span class="doccomment">/// Create paged result control with a given page size</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">size</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
