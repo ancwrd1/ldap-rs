@@ -22,10 +22,10 @@ use crate::{
     conn::{LdapConnection, MessageStream},
     controls::SimplePagedResultsControl,
     error::Error,
-    model::Attributes,
     oid,
     options::TlsOptions,
     request::SearchRequest,
+    SearchEntry,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -182,7 +182,7 @@ impl LdapClient {
     }
 
     /// Perform search operation without paging and return one result
-    pub async fn search_one(&mut self, request: SearchRequest) -> Result<Option<Attributes>> {
+    pub async fn search_one(&mut self, request: SearchRequest) -> Result<Option<SearchEntry>> {
         let entries = self.search(request).await?;
         let mut attrs = entries.try_collect::<VecDeque<_>>().await?;
         Ok(attrs.pop_front())
@@ -277,7 +277,7 @@ impl SearchEntries {
         self: Pin<&mut Self>,
         controls: Option<Controls>,
         done: SearchResultDone,
-    ) -> Poll<Option<Result<Attributes>>> {
+    ) -> Poll<Option<Result<SearchEntry>>> {
         self.page_finished.store(true, Ordering::SeqCst);
 
         if done.0.result_code == ResultCode::Success {
@@ -305,7 +305,7 @@ impl SearchEntries {
 }
 
 impl Stream for SearchEntries {
-    type Item = Result<Attributes>;
+    type Item = Result<SearchEntry>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
@@ -313,9 +313,10 @@ impl Stream for SearchEntries {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(None) => Poll::Ready(Some(Err(Error::ConnectionClosed))),
                 Poll::Ready(Some(msg)) => match msg.protocol_op {
-                    ProtocolOp::SearchResEntry(item) => {
-                        Poll::Ready(Some(Ok(item.attributes.into_iter().map(Into::into).collect())))
-                    }
+                    ProtocolOp::SearchResEntry(item) => Poll::Ready(Some(Ok(SearchEntry {
+                        dn: String::from_utf8_lossy(&item.object_name).into_owned(),
+                        attributes: item.attributes.into_iter().map(Into::into).collect(),
+                    }))),
                     ProtocolOp::SearchResRef(_) => continue,
                     ProtocolOp::SearchResDone(done) => self.search_done(msg.controls, done),
                     _ => Poll::Ready(Some(Err(Error::InvalidResponse))),
