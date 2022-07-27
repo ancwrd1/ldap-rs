@@ -22,3 +22,12 @@ impl From<rasn_ldap::PartialAttribute> for Attribute {
         }
     }
 }
+
+/// An entry found during the search
+#[derive(Clone, Debug, PartialEq)]
+pub struct SearchEntry {
+    /// The name of the object found (Distinguished Name)
+    pub dn: String,
+    /// The attributes associated with the object
+    pub attributes: Attributes,
+}
