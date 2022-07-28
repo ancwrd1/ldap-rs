@@ -154,14 +154,14 @@ impl LdapChannel {
                     return self.tls_connect(tls_options, stream).await;
                 }
                 _ => {
-                    warn!("Unexpected STARTTLS response: {:?}", item);
+                    warn!("STARTTLS negotiation failed");
                 }
             },
             Err(_) => {
                 warn!("Timeout occurred while waiting for STARTTLS reply");
             }
             _ => {
-                warn!("STARTTLS negotiation failed");
+                warn!("Unexpected response while waiting for STARTTLS reply");
             }
         }
         Err(ChannelError::StartTlsFailed)

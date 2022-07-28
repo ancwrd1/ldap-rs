@@ -46,9 +46,11 @@ impl LdapConnection {
         tokio::spawn(async move {
             while let Some(msg) = channel_receiver.next().await {
                 match msg.protocol_op {
+                    // Check for notice of disconnection.
+                    // FIXME: This fails on MS AD because it returns a faulty response.
+                    // However the channel will be disconnected anyway.
                     ProtocolOp::ExtendedResp(resp)
-                        if msg.message_id == 0
-                            && resp.response_name.as_deref() == Some(oid::NOTICE_OF_DISCONNECTION_OID) =>
+                        if resp.response_name.as_deref() == Some(oid::NOTICE_OF_DISCONNECTION_OID) =>
                     {
                         debug!("Notice of disconnection received, exiting");
                         break;
