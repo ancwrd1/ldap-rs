@@ -173,7 +173,7 @@ impl LdapChannel {
     {
         let domain = tls_options.domain_name.as_deref().unwrap_or(&self.address);
 
-        debug!("Performing TLS handshake with domain name {}", domain);
+        debug!("Performing TLS handshake, SNI: {}", domain);
 
         let mut tls_builder = native_tls::TlsConnector::builder();
         for cert in tls_options.ca_certs {
@@ -195,7 +195,7 @@ impl LdapChannel {
             .await
             .map_err(ChannelError::Tls)?;
 
-        debug!("Handshake completed with domain name {}", domain);
+        debug!("TLS handshake succeeded!");
 
         Ok(stream)
     }
