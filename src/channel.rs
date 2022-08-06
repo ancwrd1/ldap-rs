@@ -261,16 +261,12 @@ impl LdapChannel {
 
         let builder = if tls_options.verify_certs {
             ClientConfig::builder()
-                .with_safe_default_cipher_suites()
-                .with_safe_default_kx_groups()
-                .with_safe_default_protocol_versions()?
+                .with_safe_defaults()
                 .with_root_certificates(CA_CERTS.clone())
                 .with_certificate_transparency_logs(&[], SystemTime::now())
         } else {
             ClientConfig::builder()
-                .with_safe_default_cipher_suites()
-                .with_safe_default_kx_groups()
-                .with_safe_default_protocol_versions()?
+                .with_safe_defaults()
                 .with_custom_certificate_verifier(Arc::new(NoVerifier))
         };
 
