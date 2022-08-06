@@ -7,7 +7,8 @@ and clean code.
 It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/XAMPPRocky/rasn)
 crate for all ASN.1 goodness.
 
-For TLS connections currently the `native-tls` crate is used.
+TLS connectivity is controlled by two mutually exclusive feature flags: `tls-native-tls` or `tls-rustls`.
+The default is to use `tls-native-tls` which uses the `native-tls` crate.
 
 ## Roadmap
 
@@ -16,7 +17,7 @@ For TLS connections currently the `native-tls` crate is used.
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
 - [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
-- [ ] `rustls` support via optional feature flag
+- [x] `rustls` support via optional feature flag
 - [ ] More of the `ProtocolOp` client operations
 
 ## Non-goals

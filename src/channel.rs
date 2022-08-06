@@ -8,24 +8,25 @@ use futures::{
     sink::SinkExt,
     StreamExt, TryStreamExt,
 };
-use log::{debug, error, warn};
-use rasn_ldap::{ExtendedRequest, LdapMessage, ProtocolOp, ResultCode};
+use log::{debug, error};
+use rasn_ldap::LdapMessage;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::TcpStream,
 };
+#[cfg(feature = "tls-native-tls")]
 use tokio_native_tls::TlsStream;
+#[cfg(feature = "tls-rustls")]
+use tokio_rustls::client::TlsStream;
 
 use crate::{
     codec::LdapCodec,
     error::Error,
-    oid,
     options::{TlsKind, TlsOptions},
 };
 
 const CHANNEL_SIZE: usize = 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-const STARTTLS_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub(crate) type LdapMessageSender = Sender<LdapMessage>;
 pub(crate) type LdapMessageReceiver = Receiver<LdapMessage>;
@@ -88,8 +89,15 @@ pub enum ChannelError {
     IoError(#[from] io::Error),
     #[error(transparent)]
     ConnectTimeout(#[from] tokio::time::error::Elapsed),
+    #[cfg(feature = "tls-native-tls")]
     #[error(transparent)]
     Tls(#[from] native_tls::Error),
+    #[cfg(feature = "tls-rustls")]
+    #[error(transparent)]
+    Tls(#[from] rustls::Error),
+    #[cfg(feature = "tls-rustls")]
+    #[error(transparent)]
+    DnsName(#[from] rustls::client::InvalidDnsNameError),
     #[error("STARTTLS failed")]
     StartTlsFailed,
 }
@@ -127,20 +135,28 @@ impl LdapChannel {
 
         let channel = match tls_options.kind {
             TlsKind::Plain => make_channel(stream),
+            #[cfg(feature = "__tls")]
             TlsKind::Tls => make_channel(self.tls_connect(tls_options, stream).await?),
+            #[cfg(feature = "__tls")]
             TlsKind::StartTls => make_channel(self.starttls_connect(tls_options, stream).await?),
         };
         Ok(channel)
     }
 
+    #[cfg(feature = "__tls")]
     async fn starttls_connect<S>(&self, tls_options: TlsOptions, mut stream: S) -> ChannelResult<TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        use log::warn;
+        use rasn_ldap::{ExtendedRequest, ProtocolOp, ResultCode};
+
+        const STARTTLS_TIMEOUT: Duration = Duration::from_secs(30);
+
         debug!("Begin STARTTLS negotiation");
         let mut framed = tokio_util::codec::Framed::new(&mut stream, LdapCodec);
         let req = ExtendedRequest {
-            request_name: oid::STARTTLS_OID.into(),
+            request_name: crate::oid::STARTTLS_OID.into(),
             request_value: None,
         };
         framed
@@ -167,13 +183,14 @@ impl LdapChannel {
         Err(ChannelError::StartTlsFailed)
     }
 
+    #[cfg(feature = "tls-native-tls")]
     async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let domain = tls_options.domain_name.as_deref().unwrap_or(&self.address);
 
-        debug!("Performing TLS handshake, SNI: {}", domain);
+        debug!("Performing TLS handshake using native-tls, SNI: {}", domain);
 
         let mut tls_builder = native_tls::TlsConnector::builder();
         for cert in tls_options.ca_certs {
@@ -194,6 +211,77 @@ impl LdapChannel {
             .connect(domain, stream)
             .await
             .map_err(ChannelError::Tls)?;
+
+        debug!("TLS handshake succeeded!");
+
+        Ok(stream)
+    }
+
+    #[cfg(feature = "tls-rustls")]
+    async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<TlsStream<S>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        use std::{sync::Arc, time::SystemTime};
+
+        use once_cell::sync::Lazy;
+        use rustls::{
+            client::{ServerCertVerified, ServerCertVerifier},
+            Certificate, ClientConfig, RootCertStore, ServerName,
+        };
+
+        struct NoVerifier;
+        impl ServerCertVerifier for NoVerifier {
+            fn verify_server_cert(
+                &self,
+                _end_entity: &Certificate,
+                _intermediates: &[Certificate],
+                _server_name: &ServerName,
+                _scts: &mut dyn Iterator<Item = &[u8]>,
+                _ocsp_response: &[u8],
+                _now: SystemTime,
+            ) -> Result<ServerCertVerified, rustls::Error> {
+                Ok(ServerCertVerified::assertion())
+            }
+        }
+
+        static CA_CERTS: Lazy<RootCertStore> = Lazy::new(|| {
+            let mut certs = rustls_native_certs::load_native_certs()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|c| c.0)
+                .collect::<Vec<_>>();
+            let mut store = RootCertStore::empty();
+            store.add_parsable_certificates(&mut certs);
+            store
+        });
+        let domain = ServerName::try_from(tls_options.domain_name.as_deref().unwrap_or(&self.address))?;
+
+        debug!("Performing TLS handshake using rustls, SNI: {:?}", domain);
+
+        let builder = if tls_options.verify_certs {
+            ClientConfig::builder()
+                .with_safe_default_cipher_suites()
+                .with_safe_default_kx_groups()
+                .with_safe_default_protocol_versions()?
+                .with_root_certificates(CA_CERTS.clone())
+                .with_certificate_transparency_logs(&[], SystemTime::now())
+        } else {
+            ClientConfig::builder()
+                .with_safe_default_cipher_suites()
+                .with_safe_default_kx_groups()
+                .with_safe_default_protocol_versions()?
+                .with_custom_certificate_verifier(Arc::new(NoVerifier))
+        };
+
+        let client_config = if let Some(identity) = tls_options.identity {
+            builder.with_single_cert(identity.certificates, identity.private_key)?
+        } else {
+            builder.with_no_client_auth()
+        };
+
+        let tokio_connector = tokio_rustls::TlsConnector::from(Arc::new(client_config));
+        let stream = tokio_connector.connect(domain, stream).await?;
 
         debug!("TLS handshake succeeded!");
 
