@@ -25,7 +25,7 @@ use crate::{
     oid,
     options::TlsOptions,
     request::SearchRequest,
-    ModifyRequest, SearchEntry,
+    Attribute, ModifyRequest, SearchEntry,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -209,6 +209,59 @@ impl LdapClient {
 
         match resp.protocol_op {
             ProtocolOp::ModifyResponse(resp) => {
+                check_result(LdapResult::new(
+                    resp.0.result_code,
+                    resp.0.matched_dn,
+                    resp.0.diagnostic_message,
+                ))?;
+                Ok(())
+            }
+            _ => Err(Error::InvalidResponse),
+        }
+    }
+
+    /// Perform add operation
+    pub async fn add<S, I>(&mut self, dn: S, attributes: I) -> Result<()>
+    where
+        S: AsRef<str>,
+        I: IntoIterator<Item = Attribute>,
+    {
+        let id = self.new_id();
+
+        let msg = LdapMessage::new(
+            id,
+            ProtocolOp::AddRequest(rasn_ldap::AddRequest {
+                entry: dn.as_ref().to_owned().into_bytes().into(),
+                attributes: attributes.into_iter().map(Into::into).collect(),
+            }),
+        );
+        let resp = self.connection.send_recv(msg).await?;
+
+        match resp.protocol_op {
+            ProtocolOp::AddResponse(resp) => {
+                check_result(LdapResult::new(
+                    resp.0.result_code,
+                    resp.0.matched_dn,
+                    resp.0.diagnostic_message,
+                ))?;
+                Ok(())
+            }
+            _ => Err(Error::InvalidResponse),
+        }
+    }
+
+    /// Perform delete operation
+    pub async fn delete<S: AsRef<str>>(&mut self, dn: S) -> Result<()> {
+        let id = self.new_id();
+
+        let msg = LdapMessage::new(
+            id,
+            ProtocolOp::DelRequest(rasn_ldap::DelRequest(dn.as_ref().to_owned().into_bytes().into())),
+        );
+        let resp = self.connection.send_recv(msg).await?;
+
+        match resp.protocol_op {
+            ProtocolOp::DelResponse(resp) => {
                 check_result(LdapResult::new(
                     resp.0.result_code,
                     resp.0.matched_dn,
