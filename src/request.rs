@@ -2,10 +2,14 @@
 
 use std::time::Duration;
 
+pub use rasn_ldap::ChangeOperation;
+use rasn_ldap::ModifyRequestChanges;
+
 use crate::{
     error::Error,
     filter::parse_filter,
     model::{SearchRequestDerefAliases, SearchRequestScope},
+    Attribute,
 };
 
 /// LDAP search request builder
@@ -131,5 +135,60 @@ impl SearchRequest {
 impl From<SearchRequest> for rasn_ldap::SearchRequest {
     fn from(req: SearchRequest) -> Self {
         req.0
+    }
+}
+
+/// Search request
+#[derive(Clone, Debug, PartialEq)]
+pub struct ModifyRequest(pub(crate) rasn_ldap::ModifyRequest);
+
+impl ModifyRequest {
+    /// Create modification request builder for a given object DN
+    pub fn builder<S: AsRef<str>>(object: S) -> ModifyRequestBuilder {
+        ModifyRequestBuilder::new(object)
+    }
+}
+
+impl From<ModifyRequest> for rasn_ldap::ModifyRequest {
+    fn from(req: ModifyRequest) -> Self {
+        req.0
+    }
+}
+
+/// LDAP search request builder
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModifyRequestBuilder {
+    object: String,
+    operations: Vec<(ChangeOperation, Attribute)>,
+}
+
+impl ModifyRequestBuilder {
+    pub(crate) fn new<S: AsRef<str>>(object: S) -> Self {
+        Self {
+            object: object.as_ref().to_owned(),
+            operations: Vec::new(),
+        }
+    }
+
+    /// Append modification operation to the request builder
+    pub fn operation(mut self, operation: ChangeOperation, attribute: Attribute) -> Self {
+        self.operations.push((operation, attribute));
+        self
+    }
+
+    /// Build the modification request
+    pub fn build(self) -> ModifyRequest {
+        let req = rasn_ldap::ModifyRequest {
+            object: self.object.into_bytes().into(),
+            changes: self
+                .operations
+                .into_iter()
+                .map(|(operation, attribute)| ModifyRequestChanges {
+                    operation,
+                    modification: attribute.into(),
+                })
+                .collect(),
+        };
+        ModifyRequest(req)
     }
 }

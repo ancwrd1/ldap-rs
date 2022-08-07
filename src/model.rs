@@ -23,6 +23,12 @@ impl From<rasn_ldap::PartialAttribute> for Attribute {
     }
 }
 
+impl From<Attribute> for rasn_ldap::PartialAttribute {
+    fn from(attr: Attribute) -> Self {
+        rasn_ldap::PartialAttribute::new(attr.name.into_bytes().into(), attr.values.into_iter().collect())
+    }
+}
+
 /// An entry found during the search
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchEntry {

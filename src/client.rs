@@ -25,7 +25,7 @@ use crate::{
     oid,
     options::TlsOptions,
     request::SearchRequest,
-    SearchEntry,
+    ModifyRequest, SearchEntry,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -197,6 +197,26 @@ impl LdapClient {
             request,
             page_size,
             inner: None,
+        }
+    }
+
+    /// Perform modify operation
+    pub async fn modify(&mut self, request: ModifyRequest) -> Result<()> {
+        let id = self.new_id();
+
+        let msg = LdapMessage::new(id, ProtocolOp::ModifyRequest(request.into()));
+        let resp = self.connection.send_recv(msg).await?;
+
+        match resp.protocol_op {
+            ProtocolOp::ModifyResponse(resp) => {
+                check_result(LdapResult::new(
+                    resp.0.result_code,
+                    resp.0.matched_dn,
+                    resp.0.diagnostic_message,
+                ))?;
+                Ok(())
+            }
+            _ => Err(Error::InvalidResponse),
         }
     }
 }
