@@ -27,6 +27,24 @@
 <span id="22">22</span>
 <span id="23">23</span>
 <span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Data structures</span>
 
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
@@ -51,6 +69,24 @@
         }
     }
 }
+
+<span class="doccomment">/// An entry found during the search</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SearchEntry</span> {
+    <span class="doccomment">/// The name of the object found (Distinguished Name)</span>
+    <span class="kw">pub</span> <span class="ident">dn</span>: <span class="ident">String</span>,
+    <span class="doccomment">/// The attributes associated with the object</span>
+    <span class="kw">pub</span> <span class="ident">attributes</span>: <span class="ident">Attributes</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">rasn_ldap::SearchResultEntry</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SearchEntry</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">raw</span>: <span class="ident">rasn_ldap::SearchResultEntry</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">SearchEntry</span> {
+            <span class="ident">dn</span>: <span class="ident">String::from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">raw</span>.<span class="ident">object_name</span>).<span class="ident">into_owned</span>(),
+            <span class="ident">attributes</span>: <span class="ident">raw</span>.<span class="ident">attributes</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">Into::into</span>).<span class="ident">collect</span>(),
+        }
+    }
+}
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ldap_rs" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.61.0 (fe5b13d68 2022-05-18)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ldap_rs" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0 (a8314ef7d 2022-06-27)" ></div>
 </body></html>
