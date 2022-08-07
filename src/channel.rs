@@ -98,6 +98,9 @@ pub enum ChannelError {
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
     DnsName(#[from] rustls::client::InvalidDnsNameError),
+    #[cfg(feature = "tls-rustls")]
+    #[error(transparent)]
+    WebPki(#[from] tokio_rustls::webpki::Error),
     #[error("STARTTLS failed")]
     StartTlsFailed,
 }
@@ -257,12 +260,17 @@ impl LdapChannel {
         });
         let domain = ServerName::try_from(tls_options.domain_name.as_deref().unwrap_or(&self.address))?;
 
+        let mut ca_certs = CA_CERTS.clone();
+        for ca in tls_options.ca_certs {
+            ca_certs.add(&ca)?;
+        }
+
         debug!("Performing TLS handshake using rustls, SNI: {:?}", domain);
 
         let builder = if tls_options.verify_certs {
             ClientConfig::builder()
                 .with_safe_defaults()
-                .with_root_certificates(CA_CERTS.clone())
+                .with_root_certificates(ca_certs)
                 .with_certificate_transparency_logs(&[], SystemTime::now())
         } else {
             ClientConfig::builder()
