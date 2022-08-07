@@ -31,3 +31,12 @@ pub struct SearchEntry {
     /// The attributes associated with the object
     pub attributes: Attributes,
 }
+
+impl From<rasn_ldap::SearchResultEntry> for SearchEntry {
+    fn from(raw: rasn_ldap::SearchResultEntry) -> Self {
+        SearchEntry {
+            dn: String::from_utf8_lossy(&raw.object_name).into_owned(),
+            attributes: raw.attributes.into_iter().map(Into::into).collect(),
+        }
+    }
+}

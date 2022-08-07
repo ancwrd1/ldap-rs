@@ -313,10 +313,7 @@ impl Stream for SearchEntries {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(None) => Poll::Ready(Some(Err(Error::ConnectionClosed))),
                 Poll::Ready(Some(msg)) => match msg.protocol_op {
-                    ProtocolOp::SearchResEntry(item) => Poll::Ready(Some(Ok(SearchEntry {
-                        dn: String::from_utf8_lossy(&item.object_name).into_owned(),
-                        attributes: item.attributes.into_iter().map(Into::into).collect(),
-                    }))),
+                    ProtocolOp::SearchResEntry(item) => Poll::Ready(Some(Ok(item.into()))),
                     ProtocolOp::SearchResRef(_) => continue,
                     ProtocolOp::SearchResDone(done) => self.search_done(msg.controls, done),
                     _ => Poll::Ready(Some(Err(Error::InvalidResponse))),

@@ -17,24 +17,24 @@ type RulePair<'a> = Pair<'a, Rule>;
 type RulePairs<'a> = Pairs<'a, Rule>;
 
 #[inline]
-fn nibble_to_bin(nibble: u8) -> u8 {
-    match nibble {
-        b'0'..=b'9' => nibble - b'0',
-        b'a'..=b'f' => nibble - b'a' + 10,
-        b'A'..=b'F' => nibble - b'A' + 10,
+fn c2b(c: u8) -> u8 {
+    match c {
+        b'0'..=b'9' => c - b'0',
+        b'a'..=b'f' => c - b'a' + 10,
+        b'A'..=b'F' => c - b'A' + 10,
         _ => panic!("Unexpected value"),
     }
 }
 
 #[inline]
-fn byte_to_bin(data: &[u8]) -> u8 {
-    (nibble_to_bin(data[0]) << 4) | nibble_to_bin(data[1])
+fn hex2b(data: &[u8]) -> u8 {
+    (c2b(data[0]) << 4) | c2b(data[1])
 }
 
 fn unescape(s: &[u8]) -> Cow<[u8]> {
     static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\\([\da-fA-F]{2})"#).unwrap());
 
-    HEX_RE.replace_all(s, |caps: &Captures| [byte_to_bin(&caps[1])])
+    HEX_RE.replace_all(s, |caps: &Captures| [hex2b(&caps[1])])
 }
 
 #[derive(Parser)]
