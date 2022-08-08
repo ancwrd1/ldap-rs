@@ -19,12 +19,8 @@ The default is to use `tls-native-tls` which uses the `native-tls` crate.
 - [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
 - [x] `rustls` support via optional feature flag
 - [x] Additional `ProtocolOp` client operations (add, modify, delete)
+- [ ] Kerberos SSO support
 - [ ] Additional extended operations
-
-## Non-goals
-
-* SASL layer (Kerberos, MD5, etc)
-* Server-side implementation
 
 ## Usage 
 
