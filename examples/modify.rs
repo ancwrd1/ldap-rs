@@ -1,4 +1,4 @@
-use ldap_rs::{Attribute, ChangeOperation, LdapClient, ModifyRequest};
+use ldap_rs::{Attribute, LdapClient, ModifyRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         values: vec![b"123456".to_vec().into()],
     };
     let req = ModifyRequest::builder("cn=myuser,cn=Users,dc=intranet,dc=lan")
-        .operation(ChangeOperation::Replace, attr)
+        .replace(attr)
         .build();
 
     client.modify(req).await?;

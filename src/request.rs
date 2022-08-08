@@ -2,8 +2,7 @@
 
 use std::time::Duration;
 
-pub use rasn_ldap::ChangeOperation;
-use rasn_ldap::ModifyRequestChanges;
+use rasn_ldap::{ChangeOperation, ModifyRequestChanges};
 
 use crate::{
     error::Error,
@@ -170,9 +169,21 @@ impl ModifyRequestBuilder {
         }
     }
 
-    /// Append modification operation to the request builder
-    pub fn operation(mut self, operation: ChangeOperation, attribute: Attribute) -> Self {
-        self.operations.push((operation, attribute));
+    /// Append add operation to the request builder
+    pub fn add(mut self, attribute: Attribute) -> Self {
+        self.operations.push((ChangeOperation::Add, attribute));
+        self
+    }
+
+    /// Append delete operation to the request builder
+    pub fn delete(mut self, attribute: Attribute) -> Self {
+        self.operations.push((ChangeOperation::Delete, attribute));
+        self
+    }
+
+    /// Append replace operation to the request builder
+    pub fn replace(mut self, attribute: Attribute) -> Self {
+        self.operations.push((ChangeOperation::Replace, attribute));
         self
     }
 
