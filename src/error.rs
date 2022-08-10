@@ -52,6 +52,8 @@ pub enum Error {
     InvalidFilter(pest::error::Error<Rule>),
     InvalidResponse,
     ConnectionClosed,
+    GssApiError(String),
+    NoSaslCredentials,
 }
 
 impl error::Error for Error {}
@@ -105,6 +107,8 @@ impl fmt::Display for Error {
             Error::InvalidResponse => write!(f, "Invalid response"),
             Error::InvalidFilter(e) => write!(f, "{}", e),
             Error::ConnectionClosed => write!(f, "Connection closed"),
+            Error::GssApiError(e) => write!(f, "{}", e),
+            Error::NoSaslCredentials => write!(f, "No SASL credentials in response"),
         }
     }
 }

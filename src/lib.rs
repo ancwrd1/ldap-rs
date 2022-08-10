@@ -8,11 +8,11 @@ pub use model::*;
 pub use options::*;
 pub use request::*;
 
-pub(crate) mod channel;
 pub(crate) mod codec;
 pub(crate) mod conn;
 pub(crate) mod filter;
 
+pub mod channel;
 pub mod client;
 pub mod controls;
 pub mod error;

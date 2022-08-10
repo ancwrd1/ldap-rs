@@ -28,8 +28,8 @@ use crate::{
 const CHANNEL_SIZE: usize = 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub(crate) type LdapMessageSender = Sender<LdapMessage>;
-pub(crate) type LdapMessageReceiver = Receiver<LdapMessage>;
+pub type LdapMessageSender = Sender<LdapMessage>;
+pub type LdapMessageReceiver = Receiver<LdapMessage>;
 
 fn io_error<E>(e: E) -> io::Error
 where
@@ -105,10 +105,10 @@ pub enum ChannelError {
     StartTlsFailed,
 }
 
-pub(crate) type ChannelResult<T> = Result<T, ChannelError>;
+pub type ChannelResult<T> = Result<T, ChannelError>;
 
 /// LDAP TCP channel connector
-pub(crate) struct LdapChannel {
+pub struct LdapChannel {
     address: String,
     port: u16,
 }

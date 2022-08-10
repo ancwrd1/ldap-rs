@@ -14,12 +14,12 @@ The default is to use `tls-native-tls` which uses the `native-tls` crate.
 
 - [x] Simple bind with username and password
 - [x] SASL EXTERNAL bind
+- [x] Kerberos GSSAPI bind (SASL protection is not implemented, use TLS instead)
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
 - [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
 - [x] `rustls` support via optional feature flag
 - [x] Additional `ProtocolOp` client operations (add, modify, delete)
-- [ ] Kerberos SSO support
 - [ ] Additional extended operations
 
 ## Usage 

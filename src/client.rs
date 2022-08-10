@@ -14,8 +14,8 @@ use std::{
 use futures::{future::BoxFuture, Future, Stream, TryStreamExt};
 use parking_lot::RwLock;
 use rasn_ldap::{
-    AuthenticationChoice, BindRequest, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp, ResultCode,
-    SaslCredentials, SearchResultDone, UnbindRequest,
+    AuthenticationChoice, BindRequest, BindResponse, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp,
+    ResultCode, SaslCredentials, SearchResultDone, UnbindRequest,
 };
 
 use crate::{
@@ -31,7 +31,7 @@ use crate::{
 pub type Result<T> = std::result::Result<T, Error>;
 
 fn check_result(result: LdapResult) -> Result<()> {
-    if result.result_code == ResultCode::Success {
+    if result.result_code == ResultCode::Success || result.result_code == ResultCode::SaslBindInProgress {
         Ok(())
     } else {
         Err(Error::OperationFailed(result.into()))
@@ -96,18 +96,22 @@ impl LdapClient {
         self.id_counter.fetch_add(1, Ordering::SeqCst)
     }
 
-    async fn do_bind(&mut self, req: BindRequest) -> Result<()> {
+    async fn do_bind(&mut self, req: BindRequest) -> Result<BindResponse> {
         let id = self.new_id();
         let msg = LdapMessage::new(id, ProtocolOp::BindRequest(req));
 
         let item = self.connection.send_recv(msg).await?;
 
         match item.protocol_op {
-            ProtocolOp::BindResponse(resp) => Ok(check_result(LdapResult::new(
-                resp.result_code,
-                resp.matched_dn,
-                resp.diagnostic_message,
-            ))?),
+            ProtocolOp::BindResponse(resp) => {
+                let result = resp.clone();
+                check_result(LdapResult::new(
+                    resp.result_code,
+                    resp.matched_dn,
+                    resp.diagnostic_message,
+                ))?;
+                Ok(result)
+            }
             _ => Err(Error::InvalidResponse),
         }
     }
@@ -120,14 +124,76 @@ impl LdapClient {
     {
         let auth_choice = AuthenticationChoice::Simple(password.as_ref().to_owned().into());
         let req = BindRequest::new(3, username.as_ref().to_owned().into(), auth_choice);
-        self.do_bind(req).await
+        self.do_bind(req).await?;
+        Ok(())
     }
 
     /// Perform SASL EXTERNAL bind
     pub async fn sasl_external_bind(&mut self) -> Result<()> {
         let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new("EXTERNAL".into(), None));
         let req = BindRequest::new(3, Default::default(), auth_choice);
-        self.do_bind(req).await
+        self.do_bind(req).await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "kerberos")]
+    /// Perform SASL GSSAPI bind (Kerberos).
+    /// Privacy mode over plain connection is not supported, TLS should be used instead.
+    pub async fn sasl_gssapi_bind<S: AsRef<str>>(&mut self, realm: S) -> Result<()> {
+        use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
+
+        // GSSAPI code credits: https://github.com/inejge/ldap3
+
+        let spn = format!("ldap/{}", realm.as_ref());
+
+        let (client_ctx, token) =
+            ClientCtx::new(InitiateFlags::empty(), None, &spn, None).map_err(|e| Error::GssApiError(e.to_string()))?;
+
+        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(
+            "GSSAPI".into(),
+            Some(token.as_ref().to_vec().into()),
+        ));
+        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let response = self.do_bind(req).await?;
+
+        let token = match response.server_sasl_creds {
+            Some(token) => token,
+            _ => return Err(Error::NoSaslCredentials),
+        };
+
+        let step = client_ctx
+            .step(&token)
+            .map_err(|e| Error::GssApiError(format!("{}", e)))?;
+
+        let mut client_ctx = match step {
+            Step::Finished((ctx, None)) => ctx,
+            _ => {
+                return Err(Error::GssApiError(
+                    "GSSAPI exchange not finished or has an additional token".to_owned(),
+                ))
+            }
+        };
+
+        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new("GSSAPI".into(), None));
+        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let response = self.do_bind(req).await?;
+
+        if response.server_sasl_creds.is_none() {
+            return Err(Error::NoSaslCredentials);
+        }
+
+        let needed_layer = 1; // GSSAUTH_P_NONE
+        let recv_max_size = (0x9FFFB8u32 | (needed_layer as u32) << 24).to_be_bytes();
+        let size_msg = client_ctx
+            .wrap(true, &recv_max_size)
+            .map_err(|e| Error::GssApiError(format!("{}", e)))?;
+
+        let auth_choice =
+            AuthenticationChoice::Sasl(SaslCredentials::new("GSSAPI".into(), Some(size_msg.to_vec().into())));
+        let req = BindRequest::new(3, Default::default(), auth_choice);
+        self.do_bind(req).await?;
+
+        Ok(())
     }
 
     /// Perform unbind operation. This will instruct LDAP server to terminate the connection
