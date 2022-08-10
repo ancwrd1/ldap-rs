@@ -116,6 +116,14 @@ impl LdapClient {
         }
     }
 
+    fn new_sasl_bind_req(&self, mech: &str, creds: Option<&[u8]>) -> BindRequest {
+        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(
+            mech.as_bytes().to_vec().into(),
+            creds.map(|c| c.to_vec().into()),
+        ));
+        BindRequest::new(3, Default::default(), auth_choice)
+    }
+
     /// Perform simple bind operation with username and password
     pub async fn simple_bind<U, P>(&mut self, username: U, password: P) -> Result<()>
     where
@@ -130,15 +138,14 @@ impl LdapClient {
 
     /// Perform SASL EXTERNAL bind
     pub async fn sasl_external_bind(&mut self) -> Result<()> {
-        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new("EXTERNAL".into(), None));
-        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let req = self.new_sasl_bind_req("EXTERNAL", None);
         self.do_bind(req).await?;
         Ok(())
     }
 
     #[cfg(feature = "kerberos")]
     /// Perform SASL GSSAPI bind (Kerberos).
-    /// Privacy mode over plain connection is not supported, TLS should be used instead.
+    /// SASL protection over plain connection is not implemented, use TLS instead.
     pub async fn sasl_gssapi_bind<S: AsRef<str>>(&mut self, realm: S) -> Result<()> {
         use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
 
@@ -149,11 +156,7 @@ impl LdapClient {
         let (client_ctx, token) =
             ClientCtx::new(InitiateFlags::empty(), None, &spn, None).map_err(|e| Error::GssApiError(e.to_string()))?;
 
-        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(
-            "GSSAPI".into(),
-            Some(token.as_ref().to_vec().into()),
-        ));
-        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let req = self.new_sasl_bind_req("GSSAPI", Some(token.as_ref()));
         let response = self.do_bind(req).await?;
 
         let token = match response.server_sasl_creds {
@@ -174,8 +177,7 @@ impl LdapClient {
             }
         };
 
-        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new("GSSAPI".into(), None));
-        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let req = self.new_sasl_bind_req("GSSAPI", None);
         let response = self.do_bind(req).await?;
 
         if response.server_sasl_creds.is_none() {
@@ -188,9 +190,7 @@ impl LdapClient {
             .wrap(true, &recv_max_size)
             .map_err(|e| Error::GssApiError(format!("{}", e)))?;
 
-        let auth_choice =
-            AuthenticationChoice::Sasl(SaslCredentials::new("GSSAPI".into(), Some(size_msg.to_vec().into())));
-        let req = BindRequest::new(3, Default::default(), auth_choice);
+        let req = self.new_sasl_bind_req("GSSAPI", Some(size_msg.as_ref()));
         self.do_bind(req).await?;
 
         Ok(())

@@ -170,19 +170,19 @@ impl ModifyRequestBuilder {
     }
 
     /// Append add operation to the request builder
-    pub fn add(mut self, attribute: Attribute) -> Self {
+    pub fn add_op(mut self, attribute: Attribute) -> Self {
         self.operations.push((ChangeOperation::Add, attribute));
         self
     }
 
     /// Append delete operation to the request builder
-    pub fn delete(mut self, attribute: Attribute) -> Self {
+    pub fn delete_op(mut self, attribute: Attribute) -> Self {
         self.operations.push((ChangeOperation::Delete, attribute));
         self
     }
 
     /// Append replace operation to the request builder
-    pub fn replace(mut self, attribute: Attribute) -> Self {
+    pub fn replace_op(mut self, attribute: Attribute) -> Self {
         self.operations.push((ChangeOperation::Replace, attribute));
         self
     }

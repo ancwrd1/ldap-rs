@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         values: vec![b"123456".to_vec().into()],
     };
     let req = ModifyRequest::builder("cn=myuser,cn=Users,dc=intranet,dc=lan")
-        .replace(attr)
+        .replace_op(attr)
         .build();
 
     client.modify(req).await?;

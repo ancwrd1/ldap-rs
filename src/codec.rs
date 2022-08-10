@@ -22,7 +22,6 @@ impl Decoder for LdapCodec {
         match LdapMessage::decode(&mut decoder) {
             Ok(msg) => {
                 let len = decoder.decoded_len();
-                drop(decoder);
                 src.advance(len);
                 trace!("Decoded message of {} bytes: {:?}", len, msg);
                 Ok(Some(msg))
