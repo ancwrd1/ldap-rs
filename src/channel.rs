@@ -87,22 +87,28 @@ where
 pub enum ChannelError {
     #[error(transparent)]
     IoError(#[from] io::Error),
+
     #[error(transparent)]
     ConnectTimeout(#[from] tokio::time::error::Elapsed),
+
+    #[error("STARTTLS failed")]
+    StartTlsFailed,
+
     #[cfg(feature = "tls-native-tls")]
     #[error(transparent)]
     Tls(#[from] native_tls::Error),
+
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
     Tls(#[from] rustls::Error),
+
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
     DnsName(#[from] rustls::client::InvalidDnsNameError),
+
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
     WebPki(#[from] tokio_rustls::webpki::Error),
-    #[error("STARTTLS failed")]
-    StartTlsFailed,
 }
 
 pub type ChannelResult<T> = Result<T, ChannelError>;
@@ -138,15 +144,15 @@ impl LdapChannel {
 
         let channel = match tls_options.kind {
             TlsKind::Plain => make_channel(stream),
-            #[cfg(feature = "__tls")]
+            #[cfg(tls)]
             TlsKind::Tls => make_channel(self.tls_connect(tls_options, stream).await?),
-            #[cfg(feature = "__tls")]
+            #[cfg(tls)]
             TlsKind::StartTls => make_channel(self.starttls_connect(tls_options, stream).await?),
         };
         Ok(channel)
     }
 
-    #[cfg(feature = "__tls")]
+    #[cfg(tls)]
     async fn starttls_connect<S>(&self, tls_options: TlsOptions, mut stream: S) -> ChannelResult<TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,

@@ -143,9 +143,11 @@ impl LdapClient {
         Ok(())
     }
 
-    #[cfg(feature = "kerberos")]
-    /// Perform SASL GSSAPI bind (Kerberos).
-    /// SASL protection over plain connection is not implemented, use TLS instead.
+    #[cfg(feature = "gssapi")]
+    /// Perform SASL GSSAPI bind for a given server realm.
+    /// The following features are not implemented:
+    ///  * SASL protection over plain connection (use TLS instead)
+    ///  * Channel binding
     pub async fn sasl_gssapi_bind<S: AsRef<str>>(&mut self, realm: S) -> Result<()> {
         use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
 

@@ -1,6 +1,6 @@
 [package]
 name = "ldap-rs"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Dmitry Pankratov <dmitry@pankratov.net>"]
 description = "LDAP client for Rust"
 license = "MIT/Apache-2.0"
@@ -36,9 +36,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 pretty_env_logger = "0.4"
 
 [features]
-default = ["default-tls"]
-default-tls = ["tls-native-tls"]
-tls-native-tls = ["native-tls", "tokio-native-tls", "__tls"]
-tls-rustls = ["rustls", "tokio-rustls", "rustls-native-certs", "__tls"]
-kerberos = ["cross-krb5"]
-__tls = []
+default = ["tls-native-tls"]
+tls-native-tls = ["dep:native-tls", "dep:tokio-native-tls"]
+tls-rustls = ["dep:rustls", "dep:tokio-rustls", "dep:rustls-native-certs"]
+gssapi = ["dep:cross-krb5"]
