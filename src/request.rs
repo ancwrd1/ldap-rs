@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// LDAP search request builder
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SearchRequestBuilder {
     base_dn: String,
     scope: SearchRequestScope,
@@ -116,7 +116,7 @@ impl SearchRequestBuilder {
 }
 
 /// Search request
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SearchRequest(pub(crate) rasn_ldap::SearchRequest);
 
 impl SearchRequest {
@@ -138,7 +138,7 @@ impl From<SearchRequest> for rasn_ldap::SearchRequest {
 }
 
 /// Search request
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModifyRequest(pub(crate) rasn_ldap::ModifyRequest);
 
 impl ModifyRequest {
@@ -155,7 +155,7 @@ impl From<ModifyRequest> for rasn_ldap::ModifyRequest {
 }
 
 /// LDAP search request builder
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ModifyRequestBuilder {
     object: String,
     operations: Vec<(ChangeOperation, Attribute)>,

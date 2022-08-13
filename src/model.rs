@@ -4,7 +4,7 @@ use bytes::Bytes;
 pub use rasn_ldap::{ResultCode, SearchRequestDerefAliases, SearchRequestScope};
 
 /// LDAP attribute definition
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Attribute {
     /// Attribute name
     pub name: String,
@@ -36,7 +36,7 @@ impl From<Attribute> for rasn_ldap::Attribute {
 }
 
 /// An entry found during the search
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SearchEntry {
     /// The name of the object found (Distinguished Name)
     pub dn: String,
