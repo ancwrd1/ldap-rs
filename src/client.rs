@@ -145,13 +145,14 @@ impl LdapClient {
 
     #[cfg(feature = "gssapi")]
     /// Perform SASL GSSAPI bind for a given server realm.
-    /// The following features are not implemented:
+    /// The following features are NOT implemented:
     ///  * SASL protection over plain connection (use TLS instead)
     ///  * Channel binding
     pub async fn sasl_gssapi_bind<S: AsRef<str>>(&mut self, realm: S) -> Result<()> {
+        // GSSAPI code credits: https://github.com/inejge/ldap3
         use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
 
-        // GSSAPI code credits: https://github.com/inejge/ldap3
+        const SASL_RECV_MAX_SIZE: u32 = 0x0200_0000;
 
         let spn = format!("ldap/{}", realm.as_ref());
 
@@ -186,8 +187,7 @@ impl LdapClient {
             return Err(Error::NoSaslCredentials);
         }
 
-        let needed_layer = 1; // GSSAUTH_P_NONE
-        let recv_max_size = (0x9FFFB8u32 | (needed_layer as u32) << 24).to_be_bytes();
+        let recv_max_size = SASL_RECV_MAX_SIZE.to_be_bytes();
         let size_msg = client_ctx
             .wrap(true, &recv_max_size)
             .map_err(|e| Error::GssApiError(format!("{}", e)))?;
