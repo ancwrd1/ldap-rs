@@ -10,6 +10,12 @@ crate for all ASN.1 goodness.
 TLS connectivity is controlled by two mutually exclusive feature flags: `tls-native-tls` or `tls-rustls`.
 The default is to use `tls-native-tls` which uses the `native-tls` crate.
 
+A minimal Kerberos support is provided via `gssapi` feature flag with the following limitations:
+
+* SASL protection is not supported for plain connections, TLS should be used for all communication
+* Channel binding is not supported
+
+
 ## Roadmap
 
 - [x] Simple bind with username and password
