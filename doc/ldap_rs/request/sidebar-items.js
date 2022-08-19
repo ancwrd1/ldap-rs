@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["SearchRequest","Search request"],["SearchRequestBuilder","LDAP search request builder"]]});
+window.SIDEBAR_ITEMS = {"struct":[["ModifyRequest","Search request"],["ModifyRequestBuilder","LDAP search request builder"],["SearchRequest","Search request"],["SearchRequestBuilder","LDAP search request builder"]]};

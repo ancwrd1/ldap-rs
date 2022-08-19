@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Error","LDAP errors"]],"struct":[["OperationError","LDAP operation error"]]});
+window.SIDEBAR_ITEMS = {"enum":[["Error","LDAP errors"]],"struct":[["OperationError","LDAP operation error"]]};

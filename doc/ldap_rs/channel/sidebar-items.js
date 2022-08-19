@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["ChannelError","LDAP channel errors"]],"struct":[["LdapChannel","LDAP TCP channel connector"]],"type":[["ChannelResult",""],["LdapMessageReceiver",""],["LdapMessageSender",""]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["LdapClient","LDAP client"],["LdapClientBuilder","LDAP client builder"],["Pages","Pages represents a stream of paged search results"],["SearchEntries","Search entries represents a stream of search results"]],"type":[["Result",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["LdapClient","LDAP client"],["LdapClientBuilder","LDAP client builder"],["Pages","Pages represents a stream of paged search results"],["SearchEntries","Search entries represents a stream of search results"]],"type":[["Result",""]]};
