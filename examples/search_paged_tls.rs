@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     client.simple_bind("dmitry@intranet.lan", "notverysecure").await?;
 
-    // example how to search users which are not disabled in the Active Directory using rule filters
+    // example how to use rule filters in order to search non-disabled users in the Active Directory
     let req = SearchRequest::builder()
         .base_dn("dc=intranet,dc=lan")
         .scope(SearchRequestScope::WholeSubtree)
