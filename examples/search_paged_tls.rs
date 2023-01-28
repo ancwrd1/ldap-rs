@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Some(page) = page_stream.next().await {
         let items = page?.try_collect::<Vec<_>>().await?;
-        println!("Next page: {:#?}", items);
+        println!("Next page: {items:#?}");
     }
     Ok(())
 }

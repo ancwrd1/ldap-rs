@@ -97,17 +97,17 @@ impl From<pest::error::Error<Rule>> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(e) => write!(f, "{}", e),
-            Error::AsnDecode(e) => write!(f, "{:?}", e),
-            Error::AsnEncode(e) => write!(f, "{:?}", e),
-            Error::Channel(e) => write!(f, "{}", e),
-            Error::Send(e) => write!(f, "{}", e),
+            Error::Io(e) => write!(f, "{e}"),
+            Error::AsnDecode(e) => write!(f, "{e:?}"),
+            Error::AsnEncode(e) => write!(f, "{e:?}"),
+            Error::Channel(e) => write!(f, "{e}"),
+            Error::Send(e) => write!(f, "{e}"),
             Error::InvalidMessageId => write!(f, "Invalid message id"),
-            Error::OperationFailed(code) => write!(f, "LDAP operation failed: {:?}", code),
+            Error::OperationFailed(code) => write!(f, "LDAP operation failed: {code:?}"),
             Error::InvalidResponse => write!(f, "Invalid response"),
-            Error::InvalidFilter(e) => write!(f, "{}", e),
+            Error::InvalidFilter(e) => write!(f, "{e}"),
             Error::ConnectionClosed => write!(f, "Connection closed"),
-            Error::GssApiError(e) => write!(f, "{}", e),
+            Error::GssApiError(e) => write!(f, "{e}"),
             Error::NoSaslCredentials => write!(f, "No SASL credentials in response"),
         }
     }

@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Bind succeeded!");
 
     let authz = client.whoami().await?;
-    println!("Authz: {:?}", authz);
+    println!("Authz: {authz:?}");
 
     client.unbind().await?;
     println!("Unbind succeeded!");

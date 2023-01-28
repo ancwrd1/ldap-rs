@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = client.search(req).await?;
     let items = result.try_collect::<Vec<_>>().await?;
-    println!("Items: {:#?}", items);
+    println!("Items: {items:#?}");
 
     Ok(())
 }
