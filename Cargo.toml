@@ -23,8 +23,8 @@ pest = "2"
 pest_derive = "2"
 native-tls = { version = "0.2", optional = true }
 tokio-native-tls = { version = "0.3", optional = true }
-rustls = { version = "0.20", optional = true, features = ["dangerous_configuration"] }
-tokio-rustls = { version = "0.23", optional = true }
+rustls = { version = "0.21", optional = true, features = ["dangerous_configuration"] }
+tokio-rustls = { version = "0.24", optional = true }
 rustls-native-certs = { version = "0.6", optional = true }
 parking_lot = "0.12"
 regex = "1"
