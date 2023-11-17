@@ -43,8 +43,8 @@ impl From<LdapResult> for OperationError {
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-    AsnDecode(ber::de::Error),
-    AsnEncode(ber::enc::Error),
+    AsnDecode(ber::de::DecodeError),
+    AsnEncode(ber::enc::EncodeError),
     Channel(ChannelError),
     Send(SendError),
     InvalidMessageId,
@@ -64,14 +64,14 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<ber::de::Error> for Error {
-    fn from(e: ber::de::Error) -> Self {
+impl From<ber::de::DecodeError> for Error {
+    fn from(e: ber::de::DecodeError) -> Self {
         Error::AsnDecode(e)
     }
 }
 
-impl From<ber::enc::Error> for Error {
-    fn from(e: ber::enc::Error) -> Self {
+impl From<ber::enc::EncodeError> for Error {
+    fn from(e: ber::enc::EncodeError) -> Self {
         Error::AsnEncode(e)
     }
 }

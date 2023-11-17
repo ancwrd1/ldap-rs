@@ -15,8 +15,8 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tokio = { version = "1", features = ["net", "time", "rt-multi-thread"] }
 bytes = "1"
 futures = "0.3"
-rasn-ldap = "0.10"
-rasn = "0.10"
+rasn-ldap = "0.12"
+rasn = "0.12"
 thiserror = "1"
 log = "0.4"
 pest = "2"

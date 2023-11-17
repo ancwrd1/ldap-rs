@@ -1,5 +1,6 @@
 use bytes::{Buf, BufMut, BytesMut};
 use log::{error, trace};
+use rasn::error::DecodeErrorKind;
 use rasn::{ber, de::Decode};
 use rasn_ldap::LdapMessage;
 use tokio_util::codec::{Decoder, Encoder};
@@ -26,13 +27,14 @@ impl Decoder for LdapCodec {
                 trace!("Decoded message of {} bytes: {:?}", len, msg);
                 Ok(Some(msg))
             }
-            Err(ber::de::Error::Incomplete { needed }) => {
-                trace!("Incomplete request, needed: {:?}", needed);
-                Ok(None)
-            }
-            Err(e) => {
-                error!("Decoder error: {}", e);
-                Err(e.into())
+            Err(err) => {
+                if let DecodeErrorKind::Incomplete { needed } = *err.kind {
+                    trace!("Incomplete request, needed: {:?}", needed);
+                    Ok(None)
+                } else {
+                    error!("Decoder error: {}", err);
+                    Err(err.into())
+                }
             }
         }
     }
