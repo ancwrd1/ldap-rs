@@ -104,11 +104,7 @@ pub enum ChannelError {
 
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
-    DnsName(#[from] rustls::client::InvalidDnsNameError),
-
-    #[cfg(feature = "tls-rustls")]
-    #[error(transparent)]
-    WebPki(#[from] tokio_rustls::webpki::Error),
+    DnsName(#[from] rustls_pki_types::InvalidDnsNameError),
 }
 
 pub type ChannelResult<T> = Result<T, ChannelError>;
@@ -231,61 +227,94 @@ impl LdapChannel {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        use std::{sync::Arc, time::SystemTime};
+        use std::sync::Arc;
 
         use once_cell::sync::Lazy;
         use rustls::{
-            client::{ServerCertVerified, ServerCertVerifier},
-            Certificate, ClientConfig, RootCertStore, ServerName,
+            client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+            crypto::{ring::default_provider, verify_tls12_signature, verify_tls13_signature},
+            pki_types::{CertificateDer, ServerName},
+            ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme,
         };
+        use rustls_pki_types::UnixTime;
 
+        #[derive(Debug)]
         struct NoVerifier;
+
         impl ServerCertVerifier for NoVerifier {
             fn verify_server_cert(
                 &self,
-                _end_entity: &Certificate,
-                _intermediates: &[Certificate],
+                _end_entity: &CertificateDer<'_>,
+                _intermediates: &[CertificateDer<'_>],
                 _server_name: &ServerName,
-                _scts: &mut dyn Iterator<Item = &[u8]>,
                 _ocsp_response: &[u8],
-                _now: SystemTime,
+                _now: UnixTime,
             ) -> Result<ServerCertVerified, rustls::Error> {
                 Ok(ServerCertVerified::assertion())
+            }
+
+            fn verify_tls12_signature(
+                &self,
+                message: &[u8],
+                cert: &CertificateDer<'_>,
+                dss: &DigitallySignedStruct,
+            ) -> Result<HandshakeSignatureValid, rustls::Error> {
+                verify_tls12_signature(
+                    message,
+                    cert,
+                    dss,
+                    &default_provider().signature_verification_algorithms,
+                )
+            }
+
+            fn verify_tls13_signature(
+                &self,
+                message: &[u8],
+                cert: &CertificateDer<'_>,
+                dss: &DigitallySignedStruct,
+            ) -> Result<HandshakeSignatureValid, rustls::Error> {
+                verify_tls13_signature(
+                    message,
+                    cert,
+                    dss,
+                    &default_provider().signature_verification_algorithms,
+                )
+            }
+
+            fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+                default_provider().signature_verification_algorithms.supported_schemes()
             }
         }
 
         static CA_CERTS: Lazy<RootCertStore> = Lazy::new(|| {
-            let mut certs = rustls_native_certs::load_native_certs()
+            let certs = rustls_native_certs::load_native_certs()
                 .unwrap_or_default()
                 .into_iter()
-                .map(|c| c.0)
+                .map(|c| c)
                 .collect::<Vec<_>>();
             let mut store = RootCertStore::empty();
-            store.add_parsable_certificates(&mut certs);
+            store.add_parsable_certificates(certs);
             store
         });
-        let domain = ServerName::try_from(tls_options.domain_name.as_deref().unwrap_or(&self.address))?;
+        let domain = ServerName::try_from(tls_options.domain_name.as_deref().unwrap_or(&self.address).to_owned())?;
 
         let mut ca_certs = CA_CERTS.clone();
         for ca in tls_options.ca_certs {
-            ca_certs.add(&ca)?;
+            ca_certs.add(ca)?;
         }
 
         debug!("Performing TLS handshake using rustls, SNI: {:?}", domain);
 
         let builder = if tls_options.verify_certs {
-            ClientConfig::builder()
-                .with_safe_defaults()
-                .with_root_certificates(ca_certs)
-                .with_certificate_transparency_logs(&[], SystemTime::now())
+            ClientConfig::builder().with_root_certificates(ca_certs)
         } else {
             ClientConfig::builder()
-                .with_safe_defaults()
+                .dangerous()
                 .with_custom_certificate_verifier(Arc::new(NoVerifier))
         };
 
         let client_config = if let Some(identity) = tls_options.identity {
-            builder.with_single_cert(identity.certificates, identity.private_key)?
+            builder.with_client_auth_cert(identity.certificates, identity.private_key)?
         } else {
             builder.with_no_client_auth()
         };

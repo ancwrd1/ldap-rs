@@ -4,10 +4,15 @@
 pub use native_tls::{Certificate, Identity};
 
 #[cfg(feature = "tls-rustls")]
-pub use rustls::{Certificate, PrivateKey};
+pub use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 
 #[cfg(feature = "tls-rustls")]
-#[derive(Clone)]
+type Certificate = CertificateDer<'static>;
+
+#[cfg(feature = "tls-rustls")]
+type PrivateKey = PrivateKeyDer<'static>;
+
+#[cfg(feature = "tls-rustls")]
 pub(crate) struct Identity {
     pub(crate) private_key: PrivateKey,
     pub(crate) certificates: Vec<Certificate>,
@@ -23,7 +28,6 @@ pub(crate) enum TlsKind {
 }
 
 /// TLS options
-#[derive(Clone)]
 pub struct TlsOptions {
     pub(crate) kind: TlsKind,
     #[cfg(tls)]
