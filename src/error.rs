@@ -41,6 +41,7 @@ impl From<LdapResult> for OperationError {
 
 /// LDAP errors
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Error {
     Io(io::Error),
     AsnDecode(ber::de::DecodeError),

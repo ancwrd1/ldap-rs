@@ -40,7 +40,7 @@ impl SearchRequestBuilder {
 
     /// Set base DN
     pub fn base_dn<S: AsRef<str>>(mut self, base_dn: S) -> Self {
-        self.base_dn = base_dn.as_ref().to_owned();
+        base_dn.as_ref().clone_into(&mut self.base_dn);
         self
     }
 
@@ -76,7 +76,7 @@ impl SearchRequestBuilder {
 
     /// Set search filter
     pub fn filter<S: AsRef<str>>(mut self, filter: S) -> Self {
-        self.filter = filter.as_ref().to_owned();
+        filter.as_ref().clone_into(&mut self.filter);
         self
     }
 
