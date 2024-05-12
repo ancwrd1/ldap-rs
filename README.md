@@ -1,10 +1,16 @@
 # Yet another LDAP client for Rust
 
+[![github actions](https://github.com/ancwrd1/ldap-rs/workflows/CI/badge.svg)](https://github.com/ancwrd1/ldap-rs/actions)
+[![crates](https://img.shields.io/crates/v/ldap-rs.svg)](https://crates.io/crates/ldap-rs)
+[![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![license](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![docs.rs](https://docs.rs/ldap-rs/badge.svg)](https://docs.rs/ldap-rs)
+
 ## Overview
 
 This project aims to provide a minimal working LDAP client written in Rust focused on ergonomics, correctness
 and clean code.
-It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/XAMPPRocky/rasn)
+It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/librasn/rasn)
 crate for all ASN.1 goodness.
 
 TLS connectivity is controlled by two mutually exclusive feature flags: `tls-native-tls` or `tls-rustls`.
@@ -16,7 +22,7 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 * Channel binding is not supported
 
 
-## Roadmap
+## Features
 
 - [x] Simple bind with username and password
 - [x] SASL EXTERNAL bind
@@ -26,15 +32,12 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 - [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
 - [x] `rustls` support via optional feature flag
 - [x] Additional `ProtocolOp` client operations (add, modify, delete)
-- [ ] Additional extended operations
 
 ## Usage 
 
 Please see the `examples` directory.
 
 ## Alternatives
-
-[ldap3](https://github.com/inejge/ldap3) is actively maintained and has currently more features (e.g. Kerberos support). 
 
 ## License
 
