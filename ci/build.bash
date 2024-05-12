@@ -16,8 +16,7 @@ required_arg $TARGET_TRIPLE '<Target Triple>'
 
 if [ -z "$RELEASE_BUILD" ]; then
     $CROSS build --target $TARGET_TRIPLE --workspace
-    $CROSS build --target $TARGET_TRIPLE --all-features --workspace
+    $CROSS build --target $TARGET_TRIPLE --workspace
 else
-    $CROSS build --target $TARGET_TRIPLE --all-features --release --workspace
+    $CROSS build --target $TARGET_TRIPLE --release --workspace
 fi
-
