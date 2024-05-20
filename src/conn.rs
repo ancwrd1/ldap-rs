@@ -24,13 +24,13 @@ const CHANNEL_SIZE: usize = 1024;
 type RequestMap = Arc<RwLock<HashMap<u32, LdapMessageSender>>>;
 
 #[derive(Clone)]
-pub(crate) struct LdapConnection {
+pub struct LdapConnection {
     requests: RequestMap,
     channel_sender: LdapMessageSender,
 }
 
 impl LdapConnection {
-    pub(crate) async fn connect<A>(address: A, port: u16, tls_options: TlsOptions) -> Result<Self, Error>
+    pub async fn connect<A>(address: A, port: u16, tls_options: TlsOptions) -> Result<Self, Error>
     where
         A: AsRef<str>,
     {
@@ -70,7 +70,7 @@ impl LdapConnection {
         Ok(connection)
     }
 
-    pub(crate) async fn send_recv_stream(&mut self, msg: LdapMessage) -> Result<MessageStream, Error> {
+    pub async fn send_recv_stream(&mut self, msg: LdapMessage) -> Result<MessageStream, Error> {
         let id = msg.message_id;
         self.channel_sender.send(msg).await?;
 
@@ -84,11 +84,11 @@ impl LdapConnection {
         })
     }
 
-    pub(crate) async fn send(&mut self, msg: LdapMessage) -> Result<(), Error> {
+    pub async fn send(&mut self, msg: LdapMessage) -> Result<(), Error> {
         Ok(self.channel_sender.send(msg).await?)
     }
 
-    pub(crate) async fn send_recv(&mut self, msg: LdapMessage) -> Result<LdapMessage, Error> {
+    pub async fn send_recv(&mut self, msg: LdapMessage) -> Result<LdapMessage, Error> {
         Ok(self
             .send_recv_stream(msg)
             .await?
@@ -98,7 +98,7 @@ impl LdapConnection {
     }
 }
 
-pub(crate) struct MessageStream {
+pub struct MessageStream {
     id: u32,
     requests: RequestMap,
     receiver: LdapMessageReceiver,

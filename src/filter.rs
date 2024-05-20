@@ -39,9 +39,9 @@ fn unescape(s: &[u8]) -> Cow<[u8]> {
 
 #[derive(Parser)]
 #[grammar = "filter.pest"]
-pub(crate) struct FilterParser;
+pub struct FilterParser;
 
-pub(crate) fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
+pub fn parse_filter<S: AsRef<str>>(filter: S) -> Result<Filter, Error> {
     let mut parsed = FilterParser::parse(Rule::rfc2254, filter.as_ref())?;
     Ok(parse_rule(parsed.next().expect("No top level rule")))
 }

@@ -9,9 +9,9 @@ pub use model::*;
 pub use options::*;
 pub use request::*;
 
-pub(crate) mod codec;
-pub(crate) mod conn;
-pub(crate) mod filter;
+mod codec;
+mod conn;
+mod filter;
 
 pub mod channel;
 pub mod client;

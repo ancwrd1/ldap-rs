@@ -7,7 +7,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::error::Error;
 
-pub(crate) struct LdapCodec;
+pub struct LdapCodec;
 
 impl Decoder for LdapCodec {
     type Item = LdapMessage;
