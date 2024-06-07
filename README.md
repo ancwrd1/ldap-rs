@@ -37,8 +37,6 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 
 Please see the `examples` directory.
 
-## Alternatives
-
 ## License
 
 Licensed under MIT or Apache license ([LICENSE-MIT](https://opensource.org/licenses/MIT)
