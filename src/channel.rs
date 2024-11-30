@@ -14,15 +14,12 @@ use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::TcpStream,
 };
-#[cfg(feature = "tls-native-tls")]
-use tokio_native_tls::TlsStream;
-#[cfg(feature = "tls-rustls")]
-use tokio_rustls::client::TlsStream;
 
 use crate::{
     codec::LdapCodec,
     error::Error,
     options::{TlsKind, TlsOptions},
+    TlsBackend,
 };
 
 const CHANNEL_SIZE: usize = 1024;
@@ -30,6 +27,14 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub type LdapMessageSender = Sender<LdapMessage>;
 pub type LdapMessageReceiver = Receiver<LdapMessage>;
+
+trait TlsStream: AsyncRead + AsyncWrite + Unpin + Send {}
+
+#[cfg(feature = "tls-native-tls")]
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> TlsStream for tokio_native_tls::TlsStream<T> {}
+
+#[cfg(feature = "tls-rustls")]
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> TlsStream for tokio_rustls::client::TlsStream<T> {}
 
 fn io_error<E>(e: E) -> io::Error
 where
@@ -96,11 +101,11 @@ pub enum ChannelError {
 
     #[cfg(feature = "tls-native-tls")]
     #[error(transparent)]
-    Tls(#[from] native_tls::Error),
+    NativeTls(#[from] native_tls::Error),
 
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
-    Tls(#[from] rustls::Error),
+    Rustls(#[from] rustls::Error),
 
     #[cfg(feature = "tls-rustls")]
     #[error(transparent)]
@@ -148,8 +153,30 @@ impl LdapChannel {
         Ok(channel)
     }
 
+    async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<Box<dyn TlsStream>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        match tls_options.backend.unwrap_or_default() {
+            #[cfg(feature = "tls-native-tls")]
+            TlsBackend::Native(connector) => Ok(Box::new(
+                self.tls_connect_native_tls(tls_options.domain_name, connector, stream)
+                    .await?,
+            )),
+            #[cfg(feature = "tls-rustls")]
+            TlsBackend::Rustls(client_config) => Ok(Box::new(
+                self.tls_connect_rustls(tls_options.domain_name, client_config, stream)
+                    .await?,
+            )),
+        }
+    }
+
     #[cfg(tls)]
-    async fn starttls_connect<S>(&self, tls_options: TlsOptions, mut stream: S) -> ChannelResult<TlsStream<S>>
+    async fn starttls_connect<S>(
+        &self,
+        tls_options: TlsOptions,
+        mut stream: S,
+    ) -> ChannelResult<impl AsyncRead + AsyncWrite + Unpin + Send>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
@@ -189,33 +216,25 @@ impl LdapChannel {
     }
 
     #[cfg(feature = "tls-native-tls")]
-    async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<TlsStream<S>>
+    async fn tls_connect_native_tls<S>(
+        &self,
+        domain_name: Option<String>,
+        tls_connector: native_tls::TlsConnector,
+        stream: S,
+    ) -> ChannelResult<tokio_native_tls::TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        let domain = tls_options.domain_name.as_deref().unwrap_or(&self.address);
+        let domain = domain_name.as_deref().unwrap_or(&self.address);
 
         debug!("Performing TLS handshake using native-tls, SNI: {}", domain);
 
-        let mut tls_builder = native_tls::TlsConnector::builder();
-        for cert in tls_options.ca_certs {
-            tls_builder.add_root_certificate(cert);
-        }
-        tls_builder.danger_accept_invalid_hostnames(!tls_options.verify_hostname);
-        tls_builder.danger_accept_invalid_certs(!tls_options.verify_certs);
-
-        if let Some(identity) = tls_options.identity {
-            tls_builder.identity(identity);
-        }
-
-        let connector = tls_builder.build()?;
-
-        let tokio_connector = tokio_native_tls::TlsConnector::from(connector);
+        let tokio_connector = tokio_native_tls::TlsConnector::from(tls_connector);
 
         let stream = tokio_connector
             .connect(domain, stream)
             .await
-            .map_err(ChannelError::Tls)?;
+            .map_err(ChannelError::NativeTls)?;
 
         debug!("TLS handshake succeeded!");
 
@@ -223,101 +242,21 @@ impl LdapChannel {
     }
 
     #[cfg(feature = "tls-rustls")]
-    async fn tls_connect<S>(&self, tls_options: TlsOptions, stream: S) -> ChannelResult<TlsStream<S>>
+    async fn tls_connect_rustls<S>(
+        &self,
+        domain_name: Option<String>,
+        client_config: rustls::ClientConfig,
+        stream: S,
+    ) -> ChannelResult<tokio_rustls::client::TlsStream<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        use rustls_pki_types::ServerName;
         use std::sync::Arc;
 
-        use once_cell::sync::Lazy;
-        use rustls::{
-            client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-            crypto::{ring::default_provider, verify_tls12_signature, verify_tls13_signature},
-            pki_types::{CertificateDer, ServerName},
-            ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme,
-        };
-        use rustls_pki_types::UnixTime;
-
-        #[derive(Debug)]
-        struct NoVerifier;
-
-        impl ServerCertVerifier for NoVerifier {
-            fn verify_server_cert(
-                &self,
-                _end_entity: &CertificateDer<'_>,
-                _intermediates: &[CertificateDer<'_>],
-                _server_name: &ServerName,
-                _ocsp_response: &[u8],
-                _now: UnixTime,
-            ) -> Result<ServerCertVerified, rustls::Error> {
-                Ok(ServerCertVerified::assertion())
-            }
-
-            fn verify_tls12_signature(
-                &self,
-                message: &[u8],
-                cert: &CertificateDer<'_>,
-                dss: &DigitallySignedStruct,
-            ) -> Result<HandshakeSignatureValid, rustls::Error> {
-                verify_tls12_signature(
-                    message,
-                    cert,
-                    dss,
-                    &default_provider().signature_verification_algorithms,
-                )
-            }
-
-            fn verify_tls13_signature(
-                &self,
-                message: &[u8],
-                cert: &CertificateDer<'_>,
-                dss: &DigitallySignedStruct,
-            ) -> Result<HandshakeSignatureValid, rustls::Error> {
-                verify_tls13_signature(
-                    message,
-                    cert,
-                    dss,
-                    &default_provider().signature_verification_algorithms,
-                )
-            }
-
-            fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-                default_provider().signature_verification_algorithms.supported_schemes()
-            }
-        }
-
-        static CA_CERTS: Lazy<RootCertStore> = Lazy::new(|| {
-            let certs = rustls_native_certs::load_native_certs()
-                .unwrap_or_default()
-                .into_iter()
-                .map(|c| c)
-                .collect::<Vec<_>>();
-            let mut store = RootCertStore::empty();
-            store.add_parsable_certificates(certs);
-            store
-        });
-        let domain = ServerName::try_from(tls_options.domain_name.as_deref().unwrap_or(&self.address).to_owned())?;
-
-        let mut ca_certs = CA_CERTS.clone();
-        for ca in tls_options.ca_certs {
-            ca_certs.add(ca)?;
-        }
+        let domain = ServerName::try_from(domain_name.as_deref().unwrap_or(&self.address).to_owned())?;
 
         debug!("Performing TLS handshake using rustls, SNI: {:?}", domain);
-
-        let builder = if tls_options.verify_certs {
-            ClientConfig::builder().with_root_certificates(ca_certs)
-        } else {
-            ClientConfig::builder()
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(NoVerifier))
-        };
-
-        let client_config = if let Some(identity) = tls_options.identity {
-            builder.with_client_auth_cert(identity.certificates, identity.private_key)?
-        } else {
-            builder.with_no_client_auth()
-        };
 
         let tokio_connector = tokio_rustls::TlsConnector::from(Arc::new(client_config));
         let stream = tokio_connector.connect(domain, stream).await?;

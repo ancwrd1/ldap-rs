@@ -1,13 +1,24 @@
 use futures::TryStreamExt;
-
 use ldap_rs::{LdapClient, SearchRequest, SearchRequestDerefAliases, SearchRequestScope, TlsOptions};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init_timed();
 
+    #[cfg(feature = "tls-native-tls")]
+    let options = {
+        let connector = native_tls::TlsConnector::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+        TlsOptions::start_tls().tls_connector(connector)
+    };
+
+    #[cfg(not(feature = "tls-native-tls"))]
+    let options = TlsOptions::start_tls();
+
     let mut client = LdapClient::builder("ldap.forumsys.com")
-        .tls_options(TlsOptions::start_tls().verify_certs(false))
+        .tls_options(options)
         .connect()
         .await?;
     client
