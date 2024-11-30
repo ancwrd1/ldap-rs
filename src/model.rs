@@ -17,21 +17,29 @@ pub type Attributes = Vec<Attribute>;
 impl From<rasn_ldap::PartialAttribute> for Attribute {
     fn from(raw: rasn_ldap::PartialAttribute) -> Self {
         Attribute {
-            name: String::from_utf8_lossy(&raw.r#type).into_owned(),
-            values: raw.vals.into_iter().collect(),
+            name: raw.r#type.0,
+            values: raw
+                .vals
+                .to_vec()
+                .into_iter()
+                .map(|v| Bytes::copy_from_slice(v))
+                .collect(),
         }
     }
 }
 
 impl From<Attribute> for rasn_ldap::PartialAttribute {
     fn from(attr: Attribute) -> Self {
-        rasn_ldap::PartialAttribute::new(attr.name.into_bytes().into(), attr.values.into_iter().collect())
+        rasn_ldap::PartialAttribute::new(
+            attr.name.into(),
+            attr.values.to_vec().into(),
+        )
     }
 }
 
 impl From<Attribute> for rasn_ldap::Attribute {
     fn from(attr: Attribute) -> Self {
-        rasn_ldap::Attribute::new(attr.name.into_bytes().into(), attr.values.into_iter().collect())
+        rasn_ldap::Attribute::new(attr.name.into(), attr.values.into())
     }
 }
 
@@ -47,7 +55,7 @@ pub struct SearchEntry {
 impl From<rasn_ldap::SearchResultEntry> for SearchEntry {
     fn from(raw: rasn_ldap::SearchResultEntry) -> Self {
         SearchEntry {
-            dn: String::from_utf8_lossy(&raw.object_name).into_owned(),
+            dn: raw.object_name.0,
             attributes: raw.attributes.into_iter().map(Into::into).collect(),
         }
     }

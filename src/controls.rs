@@ -2,7 +2,7 @@
 
 use std::convert::TryFrom;
 
-use rasn::{ber, types::*, Decode, Encode};
+use rasn::{ber, types::*, Decode, Decoder, Encode};
 use rasn_ldap::Control;
 
 use crate::error::Error;

@@ -8,7 +8,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use rasn::prelude::*;
-use rasn_ldap::{AttributeValueAssertion, Filter, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
+use rasn_ldap::{AttributeValueAssertion, Filter, LdapString, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
 use regex::bytes::{Captures, Regex};
 
 use crate::error::Error;
@@ -50,6 +50,10 @@ fn as_bytes(pair: &RulePair) -> Bytes {
     unescape(pair.as_str().as_bytes()).into_owned().into()
 }
 
+fn as_ldap_string(data: Bytes) -> LdapString {
+    String::from_utf8_lossy(&data).as_ref().into()
+}
+
 fn as_inner(pair: RulePair) -> RulePair {
     pair.into_inner().next().expect("No inner rule")
 }
@@ -60,7 +64,7 @@ fn parse_rule(pair: RulePair) -> Filter {
         Rule::or => Filter::Or(parse_set(pair.into_inner())),
         Rule::not => Filter::Not(Box::new(parse_rule(as_inner(pair)))),
         Rule::simple => parse_simple(pair.into_inner()),
-        Rule::present => Filter::Present(as_bytes(&as_inner(pair))),
+        Rule::present => Filter::Present(as_ldap_string(as_bytes(&as_inner(pair)))),
         Rule::substring => substring_to_ldap(pair.into_inner()),
         Rule::extensible => parse_extensible(pair.into_inner()),
         _ => panic!("Unexpected rule"),
@@ -71,8 +75,8 @@ fn parse_extensible(pairs: RulePairs) -> Filter {
     let mut assertion = MatchingRuleAssertion::new(None, None, Bytes::default(), false);
     for pair in pairs {
         match pair.as_rule() {
-            Rule::ruleid => assertion.matching_rule = Some(as_bytes(&pair)),
-            Rule::ident => assertion.r#type = Some(as_bytes(&pair)),
+            Rule::ruleid => assertion.matching_rule = Some(as_ldap_string(as_bytes(&pair))),
+            Rule::ident => assertion.r#type = Some(as_ldap_string(as_bytes(&pair))),
             Rule::string => assertion.match_value = as_bytes(&pair),
             Rule::dnattr => assertion.dn_attributes = true,
             _ => panic!("Unexpected rule"),
@@ -82,7 +86,7 @@ fn parse_extensible(pairs: RulePairs) -> Filter {
 }
 
 fn substring_to_ldap(mut pairs: RulePairs) -> Filter {
-    let attr = as_bytes(&pairs.next().unwrap());
+    let attr = as_ldap_string(as_bytes(&pairs.next().unwrap()));
     let choices = pairs
         .map(|pair| match pair.as_rule() {
             Rule::initial => SubstringChoice::Initial(as_bytes(&pair)),
@@ -96,7 +100,7 @@ fn substring_to_ldap(mut pairs: RulePairs) -> Filter {
 
 fn parse_simple(pairs: RulePairs) -> Filter {
     let pairs = pairs.collect::<Vec<_>>();
-    let assertion = AttributeValueAssertion::new(as_bytes(&pairs[0]), as_bytes(&pairs[2]));
+    let assertion = AttributeValueAssertion::new(as_ldap_string(as_bytes(&pairs[0])), as_bytes(&pairs[2]));
     match pairs[1].as_rule() {
         Rule::equal => Filter::EqualityMatch(assertion),
         Rule::approx => Filter::ApproxMatch(assertion),
@@ -108,13 +112,11 @@ fn parse_simple(pairs: RulePairs) -> Filter {
 
 #[allow(clippy::mutable_key_type)]
 fn parse_set(pairs: RulePairs) -> SetOf<Filter> {
-    pairs.map(parse_rule).collect()
+    pairs.map(parse_rule).collect::<Vec<_>>().into()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use super::*;
 
     #[test]
@@ -143,16 +145,22 @@ mod tests {
             ),
             (
                 "(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))",
-                Filter::And(BTreeSet::from([
-                    Filter::EqualityMatch(AttributeValueAssertion::new("objectClass".into(), "Person".into())),
-                    Filter::Or(BTreeSet::from([
-                        Filter::EqualityMatch(AttributeValueAssertion::new("sn".into(), "Jensen".into())),
-                        Filter::Substrings(SubstringFilter::new(
-                            "cn".into(),
-                            vec![SubstringChoice::Initial("Babs J".into())],
-                        )),
-                    ])),
-                ])),
+                Filter::And(
+                    vec![
+                        Filter::EqualityMatch(AttributeValueAssertion::new("objectClass".into(), "Person".into())),
+                        Filter::Or(
+                            vec![
+                                Filter::EqualityMatch(AttributeValueAssertion::new("sn".into(), "Jensen".into())),
+                                Filter::Substrings(SubstringFilter::new(
+                                    "cn".into(),
+                                    vec![SubstringChoice::Initial("Babs J".into())],
+                                )),
+                            ]
+                            .into(),
+                        ),
+                    ]
+                    .into(),
+                ),
             ),
             (
                 "(o=univ*of*mich*end)",

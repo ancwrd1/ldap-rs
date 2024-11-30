@@ -117,11 +117,9 @@ impl LdapClient {
     }
 
     fn new_sasl_bind_req(&self, mech: &str, creds: Option<&[u8]>) -> BindRequest {
-        let auth_choice = AuthenticationChoice::Sasl(SaslCredentials::new(
-            mech.as_bytes().to_vec().into(),
-            creds.map(|c| c.to_vec().into()),
-        ));
-        BindRequest::new(3, Default::default(), auth_choice)
+        let auth_choice =
+            AuthenticationChoice::Sasl(SaslCredentials::new(mech.into(), creds.map(|c| c.to_vec().into())));
+        BindRequest::new(3, String::new().into(), auth_choice)
     }
 
     /// Perform simple bind operation with username and password
@@ -299,7 +297,7 @@ impl LdapClient {
         let msg = LdapMessage::new(
             id,
             ProtocolOp::AddRequest(rasn_ldap::AddRequest {
-                entry: dn.as_ref().to_owned().into_bytes().into(),
+                entry: dn.as_ref().to_owned().into(),
                 attributes: attributes.into_iter().map(Into::into).collect(),
             }),
         );
@@ -324,7 +322,7 @@ impl LdapClient {
 
         let msg = LdapMessage::new(
             id,
-            ProtocolOp::DelRequest(rasn_ldap::DelRequest(dn.as_ref().to_owned().into_bytes().into())),
+            ProtocolOp::DelRequest(rasn_ldap::DelRequest(dn.as_ref().to_owned().into())),
         );
         let resp = self.connection.send_recv(msg).await?;
 

@@ -190,7 +190,7 @@ impl ModifyRequestBuilder {
     /// Build the modification request
     pub fn build(self) -> ModifyRequest {
         let req = rasn_ldap::ModifyRequest {
-            object: self.object.into_bytes().into(),
+            object: self.object.into(),
             changes: self
                 .operations
                 .into_iter()

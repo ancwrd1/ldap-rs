@@ -23,8 +23,8 @@ impl From<BindResponse> for OperationError {
     fn from(r: BindResponse) -> Self {
         OperationError {
             result_code: r.result_code,
-            matched_dn: String::from_utf8_lossy(&r.matched_dn).into_owned(),
-            diagnostic_message: String::from_utf8_lossy(&r.diagnostic_message).into_owned(),
+            matched_dn: r.matched_dn.0,
+            diagnostic_message: r.diagnostic_message.0,
         }
     }
 }
@@ -33,8 +33,8 @@ impl From<LdapResult> for OperationError {
     fn from(r: LdapResult) -> Self {
         OperationError {
             result_code: r.result_code,
-            matched_dn: String::from_utf8_lossy(&r.matched_dn).into_owned(),
-            diagnostic_message: String::from_utf8_lossy(&r.diagnostic_message).into_owned(),
+            matched_dn: r.matched_dn.0,
+            diagnostic_message: r.diagnostic_message.0,
         }
     }
 }
