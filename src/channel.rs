@@ -312,7 +312,7 @@ mod tests {
             start_server(&socket_address, 2).await;
 
             let (mut sender, mut receiver) = LdapChannel::for_client(address.0, address.1)
-                .connect(TlsOptions::plain())
+                .connect(TlsOptions::default())
                 .await
                 .unwrap();
             let msg = new_msg();
@@ -333,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn test_connection_fail() {
         let res = LdapChannel::for_client("127.0.0.1", 32222)
-            .connect(TlsOptions::plain())
+            .connect(TlsOptions::default())
             .await;
 
         assert!(res.is_err());

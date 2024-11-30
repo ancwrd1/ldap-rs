@@ -77,7 +77,7 @@ impl LdapClient {
         LdapClientBuilder {
             address: address.as_ref().to_owned(),
             port: 389,
-            tls_options: TlsOptions::plain(),
+            tls_options: TlsOptions::default(),
         }
     }
 

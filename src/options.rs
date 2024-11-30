@@ -20,8 +20,9 @@ mod tls {
     #[cfg(feature = "tls-rustls")]
     pub use rustls::ClientConfig;
 
-    #[derive(Clone, Copy, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub enum TlsKind {
+        #[default]
         Plain,
         Tls,
         StartTls,
@@ -63,6 +64,7 @@ mod tls {
     }
 
     /// TLS options
+    #[derive(Default, Debug)]
     pub struct TlsOptions {
         pub(crate) backend: Option<TlsBackend>,
         pub(crate) kind: TlsKind,
@@ -76,11 +78,6 @@ mod tls {
                 kind,
                 domain_name: None,
             }
-        }
-
-        /// Use plain connection without transport security
-        pub fn plain() -> Self {
-            Self::new(TlsKind::Plain)
         }
 
         /// Connect using TLS transport
