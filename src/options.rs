@@ -91,14 +91,14 @@ mod tls {
         }
 
         #[cfg(feature = "tls-rustls")]
-        /// Set client identity for mutual TLS authentication
+        /// Configure rustls backend with a given ClientConfig
         pub fn client_config(mut self, client_config: ClientConfig) -> Self {
             self.backend = Some(TlsBackend::Rustls(client_config));
             self
         }
 
         #[cfg(feature = "tls-native-tls")]
-        /// Set client identity for mutual TLS authentication
+        /// Configure native-tls backend with a given TlsConnector
         pub fn tls_connector(mut self, tls_connector: TlsConnector) -> Self {
             self.backend = Some(TlsBackend::Native(tls_connector));
             self
