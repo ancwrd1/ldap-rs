@@ -29,7 +29,7 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 - [x] Kerberos GSSAPI bind (SASL protection is not implemented, use TLS instead)
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
-- [x] `rustls` or `'native-tls` selection via feature flag
+- [x] `rustls` or `native-tls` selection via feature flag
 - [x] Extended `ProtocolOp` client operations (add, modify, delete)
 
 ## Usage 
