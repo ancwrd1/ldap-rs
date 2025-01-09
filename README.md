@@ -29,9 +29,8 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 - [x] Kerberos GSSAPI bind (SASL protection is not implemented, use TLS instead)
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
-- [x] [Documentation](https://ancwrd1.github.io/ldap-rs/doc/ldap_rs/)
-- [x] `rustls` support via optional feature flag
-- [x] Additional `ProtocolOp` client operations (add, modify, delete)
+- [x] `rustls` or `'native-tls` selection via feature flag
+- [x] Extended `ProtocolOp` client operations (add, modify, delete)
 
 ## Usage 
 
