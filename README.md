@@ -1,4 +1,4 @@
-# Yet another LDAP client for Rust
+# LDAP client library for Rust
 
 [![github actions](https://github.com/ancwrd1/ldap-rs/workflows/CI/badge.svg)](https://github.com/ancwrd1/ldap-rs/actions)
 [![crates](https://img.shields.io/crates/v/ldap-rs.svg)](https://crates.io/crates/ldap-rs)
