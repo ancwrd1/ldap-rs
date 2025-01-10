@@ -8,19 +8,14 @@
 
 ## Overview
 
-This project aims to provide a minimal working LDAP client written in Rust focused on ergonomics, correctness
-and clean code.
-It uses tokio asynchronous runtime for network I/O and an excellent [rasn](https://github.com/librasn/rasn)
-crate for all ASN.1 goodness.
-
-TLS connectivity is controlled by two feature flags: `tls-native-tls` and `tls-rustls`.
-The default is `tls-native-tls` which uses the `native-tls` crate.
+LDAP client library for Rust with async/await support, based on [tokio](https://tokio.rs).
+TLS connectivity is supported via [native-tls](https://crates.io/crates/native-tls) or [rustls](https://crates.io/crates/rustls).
+It is controlled by the feature flags `tls-native-tls` and `tls-rustls`, respectively.
 
 A minimal Kerberos support is provided via `gssapi` feature flag with the following limitations:
-
-* SASL protection is not supported for plain connections, TLS should be used for all communication
-* Channel binding is not supported
-
+ 
+* SASL protection is not supported for plain connections, use TLS connection.
+* Channel binding is not supported.
 
 ## Features
 
@@ -29,12 +24,11 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 - [x] Kerberos GSSAPI bind (SASL protection is not implemented, use TLS instead)
 - [x] Plain, TLS and STARTTLS connections
 - [x] Simple search and paged search via asynchronous streams
-- [x] `rustls` or `native-tls` selection via feature flag
 - [x] Extended `ProtocolOp` client operations (add, modify, delete)
 
 ## Usage 
 
-Please see the `examples` directory.
+Check the `examples` directory for usage examples.
 
 ## License
 
