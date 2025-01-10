@@ -28,7 +28,7 @@ A minimal Kerberos support is provided via `gssapi` feature flag with the follow
 
 ## Usage 
 
-Check the `examples` directory for usage examples.
+Check the [examples](https://github.com/ancwrd1/ldap-rs/tree/master/examples) directory for usage examples.
 
 ## License
 
