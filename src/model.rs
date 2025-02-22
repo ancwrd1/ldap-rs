@@ -30,10 +30,7 @@ impl From<rasn_ldap::PartialAttribute> for Attribute {
 
 impl From<Attribute> for rasn_ldap::PartialAttribute {
     fn from(attr: Attribute) -> Self {
-        rasn_ldap::PartialAttribute::new(
-            attr.name.into(),
-            attr.values.to_vec().into(),
-        )
+        rasn_ldap::PartialAttribute::new(attr.name.into(), attr.values.to_vec().into())
     }
 }
 
