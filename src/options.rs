@@ -28,6 +28,7 @@ mod tls {
         StartTls,
     }
 
+    #[allow(clippy::large_enum_variant)]
     #[derive(Debug)]
     pub enum TlsBackend {
         #[cfg(feature = "tls-native-tls")]
