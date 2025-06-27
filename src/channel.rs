@@ -141,7 +141,7 @@ impl LdapChannel {
         // TCP connect with a timeout
         let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(&address)).await??;
 
-        debug!("Connection established to {}", address);
+        debug!("Connection established to {address}");
 
         let channel = match tls_options.kind {
             TlsKind::Plain => make_channel(stream),
@@ -227,7 +227,7 @@ impl LdapChannel {
     {
         let domain = domain_name.as_deref().unwrap_or(&self.address);
 
-        debug!("Performing TLS handshake using native-tls, SNI: {}", domain);
+        debug!("Performing TLS handshake using native-tls, SNI: {domain}");
 
         let tokio_connector = tokio_native_tls::TlsConnector::from(tls_connector);
 

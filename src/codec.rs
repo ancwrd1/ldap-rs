@@ -24,15 +24,15 @@ impl Decoder for LdapCodec {
             Ok(msg) => {
                 let len = decoder.decoded_len();
                 src.advance(len);
-                trace!("Decoded message of {} bytes: {:?}", len, msg);
+                trace!("Decoded message of {len} bytes: {msg:?}");
                 Ok(Some(msg))
             }
             Err(err) => {
                 if let DecodeErrorKind::Incomplete { needed } = *err.kind {
-                    trace!("Incomplete request, needed: {:?}", needed);
+                    trace!("Incomplete request, needed: {needed:?}");
                     Ok(None)
                 } else {
-                    error!("Decoder error: {}", err);
+                    error!("Decoder error: {err}");
                     Err(err.into())
                 }
             }
