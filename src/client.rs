@@ -128,7 +128,7 @@ impl LdapClient {
         U: AsRef<str>,
         P: AsRef<str>,
     {
-        let auth_choice = AuthenticationChoice::Simple(password.as_ref().to_owned().into());
+        let auth_choice = AuthenticationChoice::Simple(password.as_ref().as_bytes().into());
         let req = BindRequest::new(3, username.as_ref().to_owned().into(), auth_choice);
         self.do_bind(req).await?;
         Ok(())

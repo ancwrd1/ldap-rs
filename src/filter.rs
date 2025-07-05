@@ -8,7 +8,10 @@ use pest::{
 };
 use pest_derive::Parser;
 use rasn::prelude::*;
-use rasn_ldap::{AttributeValueAssertion, Filter, LdapString, MatchingRuleAssertion, SubstringChoice, SubstringFilter};
+use rasn_ldap::{
+    AssertionValue, AttributeValueAssertion, Filter, LdapString, MatchingRuleAssertion, SubstringChoice,
+    SubstringFilter,
+};
 use regex::bytes::{Captures, Regex};
 
 use crate::error::Error;
@@ -72,12 +75,12 @@ fn parse_rule(pair: RulePair) -> Filter {
 }
 
 fn parse_extensible(pairs: RulePairs) -> Filter {
-    let mut assertion = MatchingRuleAssertion::new(None, None, Bytes::default(), false);
+    let mut assertion = MatchingRuleAssertion::new(None, None, AssertionValue::default(), false);
     for pair in pairs {
         match pair.as_rule() {
             Rule::ruleid => assertion.matching_rule = Some(as_ldap_string(as_bytes(&pair))),
             Rule::ident => assertion.r#type = Some(as_ldap_string(as_bytes(&pair))),
-            Rule::string => assertion.match_value = as_bytes(&pair),
+            Rule::string => assertion.match_value = as_bytes(&pair).as_ref().into(),
             Rule::dnattr => assertion.dn_attributes = true,
             _ => panic!("Unexpected rule"),
         }
@@ -89,9 +92,9 @@ fn substring_to_ldap(mut pairs: RulePairs) -> Filter {
     let attr = as_ldap_string(as_bytes(&pairs.next().unwrap()));
     let choices = pairs
         .map(|pair| match pair.as_rule() {
-            Rule::initial => SubstringChoice::Initial(as_bytes(&pair)),
-            Rule::any => SubstringChoice::Any(as_bytes(&pair)),
-            Rule::final_ => SubstringChoice::Final(as_bytes(&pair)),
+            Rule::initial => SubstringChoice::Initial(as_bytes(&pair).as_ref().into()),
+            Rule::any => SubstringChoice::Any(as_bytes(&pair).as_ref().into()),
+            Rule::final_ => SubstringChoice::Final(as_bytes(&pair).as_ref().into()),
             _ => panic!("Unexpected rule"),
         })
         .collect();
@@ -100,7 +103,8 @@ fn substring_to_ldap(mut pairs: RulePairs) -> Filter {
 
 fn parse_simple(pairs: RulePairs) -> Filter {
     let pairs = pairs.collect::<Vec<_>>();
-    let assertion = AttributeValueAssertion::new(as_ldap_string(as_bytes(&pairs[0])), as_bytes(&pairs[2]));
+    let assertion =
+        AttributeValueAssertion::new(as_ldap_string(as_bytes(&pairs[0])), as_bytes(&pairs[2]).as_ref().into());
     match pairs[1].as_rule() {
         Rule::equal => Filter::EqualityMatch(assertion),
         Rule::approx => Filter::ApproxMatch(assertion),
@@ -124,7 +128,10 @@ mod tests {
         let test_filters = vec![
             (
                 r#"(cn=Babs Jensen\2a\30T\30\01)"#,
-                Filter::EqualityMatch(AttributeValueAssertion::new("cn".into(), "Babs Jensen*0T0\x01".into())),
+                Filter::EqualityMatch(AttributeValueAssertion::new(
+                    "cn".into(),
+                    b"Babs Jensen*0T0\x01".as_slice().into(),
+                )),
             ),
             (
                 r#"(objectSid=\01\05\00\00\00\00\00\05\15\00\00\00B\c9\b5+\b7\a79\87\16\0c\d4\a5\01\02\00\00)"#,
@@ -140,20 +147,26 @@ mod tests {
                 "(!(cn=Tim Howes))",
                 Filter::Not(Box::new(Filter::EqualityMatch(AttributeValueAssertion::new(
                     "cn".into(),
-                    "Tim Howes".into(),
+                    b"Tim Howes".as_slice().into(),
                 )))),
             ),
             (
                 "(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))",
                 Filter::And(
                     vec![
-                        Filter::EqualityMatch(AttributeValueAssertion::new("objectClass".into(), "Person".into())),
+                        Filter::EqualityMatch(AttributeValueAssertion::new(
+                            "objectClass".into(),
+                            b"Person".as_slice().into(),
+                        )),
                         Filter::Or(
                             vec![
-                                Filter::EqualityMatch(AttributeValueAssertion::new("sn".into(), "Jensen".into())),
+                                Filter::EqualityMatch(AttributeValueAssertion::new(
+                                    "sn".into(),
+                                    b"Jensen".as_slice().into(),
+                                )),
                                 Filter::Substrings(SubstringFilter::new(
                                     "cn".into(),
-                                    vec![SubstringChoice::Initial("Babs J".into())],
+                                    vec![SubstringChoice::Initial(b"Babs J".as_slice().into())],
                                 )),
                             ]
                             .into(),
@@ -167,10 +180,10 @@ mod tests {
                 Filter::Substrings(SubstringFilter::new(
                     "o".into(),
                     vec![
-                        SubstringChoice::Initial("univ".into()),
-                        SubstringChoice::Any("of".into()),
-                        SubstringChoice::Any("mich".into()),
-                        SubstringChoice::Final("end".into()),
+                        SubstringChoice::Initial(b"univ".as_slice().into()),
+                        SubstringChoice::Any(b"of".as_slice().into()),
+                        SubstringChoice::Any(b"mich".as_slice().into()),
+                        SubstringChoice::Final(b"end".as_slice().into()),
                     ],
                 )),
             ),
@@ -179,7 +192,7 @@ mod tests {
                 Filter::ExtensibleMatch(MatchingRuleAssertion::new(
                     Some("1.2.3.4.5".into()),
                     Some("cn".into()),
-                    "Fred Flintstone".into(),
+                    b"Fred Flintstone".as_slice().into(),
                     false,
                 )),
             ),
@@ -188,7 +201,7 @@ mod tests {
                 Filter::ExtensibleMatch(MatchingRuleAssertion::new(
                     Some("2.4.6.8.10".into()),
                     Some("sn".into()),
-                    "Barney Rubble".into(),
+                    b"Barney Rubble".as_slice().into(),
                     true,
                 )),
             ),
@@ -197,7 +210,7 @@ mod tests {
                 Filter::ExtensibleMatch(MatchingRuleAssertion::new(
                     None,
                     Some("o".into()),
-                    "Ace Industry".into(),
+                    b"Ace Industry".as_slice().into(),
                     true,
                 )),
             ),
@@ -206,7 +219,7 @@ mod tests {
                 Filter::ExtensibleMatch(MatchingRuleAssertion::new(
                     Some("2.4.6.8.10".into()),
                     None,
-                    "Dino".into(),
+                    b"Dino".as_slice().into(),
                     true,
                 )),
             ),
@@ -215,7 +228,7 @@ mod tests {
                 Filter::Not(Box::new(Filter::ExtensibleMatch(MatchingRuleAssertion::new(
                     Some("1.2.840.113556.1.4.803".into()),
                     Some("userAccountControl".into()),
-                    "2".into(),
+                    b"2".as_slice().into(),
                     false,
                 )))),
             ),

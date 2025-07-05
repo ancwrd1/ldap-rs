@@ -1,7 +1,7 @@
 //! Data structures
 
 use bytes::Bytes;
-pub use rasn_ldap::{ResultCode, SearchRequestDerefAliases, SearchRequestScope};
+pub use rasn_ldap::{AttributeValue, ResultCode, SearchRequestDerefAliases, SearchRequestScope};
 
 /// LDAP attribute definition
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -30,13 +30,27 @@ impl From<rasn_ldap::PartialAttribute> for Attribute {
 
 impl From<Attribute> for rasn_ldap::PartialAttribute {
     fn from(attr: Attribute) -> Self {
-        rasn_ldap::PartialAttribute::new(attr.name.into(), attr.values.to_vec().into())
+        rasn_ldap::PartialAttribute::new(
+            attr.name.into(),
+            attr.values
+                .into_iter()
+                .map(|value| AttributeValue::from(value.as_ref()))
+                .collect::<Vec<_>>()
+                .into(),
+        )
     }
 }
 
 impl From<Attribute> for rasn_ldap::Attribute {
     fn from(attr: Attribute) -> Self {
-        rasn_ldap::Attribute::new(attr.name.into(), attr.values.into())
+        rasn_ldap::Attribute::new(
+            attr.name.into(),
+            attr.values
+                .into_iter()
+                .map(|value| AttributeValue::from(value.as_ref()))
+                .collect::<Vec<_>>()
+                .into(),
+        )
     }
 }
 
