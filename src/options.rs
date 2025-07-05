@@ -105,7 +105,7 @@ mod tls {
             self
         }
 
-        /// Specify custom domain name to use for SNI match. The default is the connection host name
+        /// Specify a custom domain name to use for SNI match. The default is the connection host name
         pub fn domain_name<S: AsRef<str>>(mut self, domain_name: S) -> Self {
             self.domain_name = Some(domain_name.as_ref().to_owned());
             self

@@ -72,7 +72,7 @@ pub struct LdapClient {
 }
 
 impl LdapClient {
-    /// Create client builder
+    /// Create a client builder
     pub fn builder<A: AsRef<str>>(address: A) -> LdapClientBuilder {
         LdapClientBuilder {
             address: address.as_ref().to_owned(),
@@ -122,7 +122,7 @@ impl LdapClient {
         BindRequest::new(3, String::new().into(), auth_choice)
     }
 
-    /// Perform simple bind operation with username and password
+    /// Perform a simple bind operation with username and password
     pub async fn simple_bind<U, P>(&mut self, username: U, password: P) -> Result<()>
     where
         U: AsRef<str>,
@@ -196,7 +196,7 @@ impl LdapClient {
         Ok(())
     }
 
-    /// Perform unbind operation. This will instruct LDAP server to terminate the connection
+    /// Perform the unbind operation. This will instruct the LDAP server to terminate the connection
     pub async fn unbind(&mut self) -> Result<()> {
         let id = self.new_id();
 
@@ -247,7 +247,7 @@ impl LdapClient {
         })
     }
 
-    /// Perform search operation without paging and return one result
+    /// Perform a search operation without paging and return one result
     pub async fn search_one(&mut self, request: SearchRequest) -> Result<Option<SearchEntry>> {
         let entries = self.search(request).await?;
         let mut attrs = entries.try_collect::<VecDeque<_>>().await?;
@@ -404,7 +404,7 @@ impl Stream for Pages {
     }
 }
 
-/// Search entries represents a stream of search results
+/// A stream of search results
 pub struct SearchEntries {
     inner: MessageStream,
     page_control: Option<Arc<RwLock<SimplePagedResultsControl>>>,

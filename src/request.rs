@@ -44,7 +44,7 @@ impl SearchRequestBuilder {
         self
     }
 
-    /// Set search scope
+    /// Set a search scope
     pub fn scope(mut self, scope: SearchRequestScope) -> Self {
         self.scope = scope;
         self
@@ -56,25 +56,25 @@ impl SearchRequestBuilder {
         self
     }
 
-    /// Set search size limit
+    /// Set a search size limit
     pub fn size_limit(mut self, size_limit: u32) -> Self {
         self.size_limit = size_limit;
         self
     }
 
-    /// Set search time limit
+    /// Set a search time limit
     pub fn time_limit(mut self, time_limit: Duration) -> Self {
         self.time_limit = time_limit;
         self
     }
 
-    /// Set flag indicating to only search types
+    /// Set a flag indicating only search types
     pub fn types_only(mut self, types_only: bool) -> Self {
         self.types_only = types_only;
         self
     }
 
-    /// Set search filter
+    /// Set a search filter
     pub fn filter<S: AsRef<str>>(mut self, filter: S) -> Self {
         filter.as_ref().clone_into(&mut self.filter);
         self
@@ -142,7 +142,7 @@ impl From<SearchRequest> for rasn_ldap::SearchRequest {
 pub struct ModifyRequest(pub(crate) rasn_ldap::ModifyRequest);
 
 impl ModifyRequest {
-    /// Create modification request builder for a given object DN
+    /// Create a modification request builder for a given object DN
     pub fn builder<S: AsRef<str>>(object: S) -> ModifyRequestBuilder {
         ModifyRequestBuilder::new(object)
     }
