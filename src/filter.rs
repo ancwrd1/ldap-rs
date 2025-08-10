@@ -34,7 +34,7 @@ fn hex2b(data: &[u8]) -> u8 {
     (c2b(data[0]) << 4) | c2b(data[1])
 }
 
-fn unescape(s: &[u8]) -> Cow<[u8]> {
+fn unescape(s: &[u8]) -> Cow<'_, [u8]> {
     static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\\([\da-fA-F]{2})").unwrap());
 
     HEX_RE.replace_all(s, |caps: &Captures| [hex2b(&caps[1])])
