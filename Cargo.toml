@@ -8,7 +8,7 @@ repository = "https://github.com/ancwrd1/ldap-rs"
 documentation = "https://docs.rs/ldap-rs"
 readme = "README.md"
 keywords = ["ldap", "client"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 tokio-util = { version = "0.7", features = ["codec"] }

@@ -3,10 +3,10 @@
 use std::{io, net::ToSocketAddrs, time::Duration};
 
 use futures::{
+    StreamExt, TryStreamExt,
     channel::mpsc::{self, Receiver, Sender},
     future,
     sink::SinkExt,
-    StreamExt, TryStreamExt,
 };
 use log::{debug, error};
 use rasn_ldap::LdapMessage;
@@ -16,10 +16,10 @@ use tokio::{
 };
 
 use crate::{
+    TlsBackend,
     codec::LdapCodec,
     error::Error,
     options::{TlsKind, TlsOptions},
-    TlsBackend,
 };
 
 const CHANNEL_SIZE: usize = 1024;
@@ -176,7 +176,7 @@ impl LdapChannel {
         &self,
         tls_options: TlsOptions,
         mut stream: S,
-    ) -> ChannelResult<impl AsyncRead + AsyncWrite + Unpin + Send>
+    ) -> ChannelResult<impl AsyncRead + AsyncWrite + Unpin + Send + use<S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
@@ -272,8 +272,8 @@ mod tests {
     use std::{
         net::{SocketAddr, ToSocketAddrs},
         sync::{
-            atomic::{AtomicUsize, Ordering},
             Arc,
+            atomic::{AtomicUsize, Ordering},
         },
     };
 

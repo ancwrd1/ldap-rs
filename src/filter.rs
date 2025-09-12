@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use bytes::Bytes;
 use once_cell::sync::Lazy;
 use pest::{
-    iterators::{Pair, Pairs},
     Parser,
+    iterators::{Pair, Pairs},
 };
 use pest_derive::Parser;
 use rasn::prelude::*;

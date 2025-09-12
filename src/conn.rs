@@ -12,11 +12,11 @@ use log::debug;
 use parking_lot::RwLock;
 
 use crate::{
+    TlsOptions,
     channel::{LdapChannel, LdapMessageReceiver, LdapMessageSender},
     error::Error,
     oid,
     rasn_ldap::{LdapMessage, ProtocolOp},
-    TlsOptions,
 };
 
 const CHANNEL_SIZE: usize = 1024;

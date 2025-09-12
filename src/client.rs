@@ -5,13 +5,13 @@ use std::{
     convert::{TryFrom, TryInto},
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     task::{Context, Poll},
 };
 
-use futures::{future::BoxFuture, Future, Stream, TryStreamExt};
+use futures::{Future, Stream, TryStreamExt, future::BoxFuture};
 use parking_lot::RwLock;
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, BindResponse, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp,
@@ -19,13 +19,13 @@ use rasn_ldap::{
 };
 
 use crate::{
+    Attribute, ModifyRequest, SearchEntry,
     conn::{LdapConnection, MessageStream},
     controls::SimplePagedResultsControl,
     error::Error,
     oid,
     options::TlsOptions,
     request::SearchRequest,
-    Attribute, ModifyRequest, SearchEntry,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -174,7 +174,7 @@ impl LdapClient {
             _ => {
                 return Err(Error::GssApiError(
                     "GSSAPI exchange not finished or has an additional token".to_owned(),
-                ))
+                ));
             }
         };
 

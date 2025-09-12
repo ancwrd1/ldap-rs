@@ -5,10 +5,10 @@ use std::time::Duration;
 use rasn_ldap::{ChangeOperation, ModifyRequestChanges};
 
 use crate::{
+    Attribute,
     error::Error,
     filter::parse_filter,
     model::{SearchRequestDerefAliases, SearchRequestScope},
-    Attribute,
 };
 
 /// LDAP search request builder
