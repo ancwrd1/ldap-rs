@@ -38,12 +38,12 @@ mod tls {
     }
 
     impl Default for TlsBackend {
-        #[cfg(feature = "tls-native-tls")]
+        #[cfg(all(feature = "tls-native-tls", not(feature = "tls-rustls")))]
         fn default() -> Self {
             Self::Native(TlsConnector::new().unwrap())
         }
 
-        #[cfg(all(feature = "tls-rustls", not(feature = "tls-native-tls")))]
+        #[cfg(feature = "tls-rustls")]
         fn default() -> Self {
             pub static CA_CERTS: once_cell::sync::Lazy<rustls::RootCertStore> = once_cell::sync::Lazy::new(|| {
                 let certs = rustls_native_certs::load_native_certs()

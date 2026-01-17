@@ -8,7 +8,7 @@ use futures::{
     future,
     sink::SinkExt,
 };
-use log::{debug, error};
+use log::debug;
 use rasn_ldap::LdapMessage;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
