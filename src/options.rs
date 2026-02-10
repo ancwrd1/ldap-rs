@@ -49,7 +49,6 @@ mod tls {
                 let certs = rustls_native_certs::load_native_certs()
                     .certs
                     .into_iter()
-                    .map(|c| c)
                     .collect::<Vec<_>>();
                 let mut store = rustls::RootCertStore::empty();
                 store.add_parsable_certificates(certs);
