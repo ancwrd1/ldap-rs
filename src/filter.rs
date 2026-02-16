@@ -1,7 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::LazyLock};
 
 use bytes::Bytes;
-use once_cell::sync::Lazy;
 use pest::{
     Parser,
     iterators::{Pair, Pairs},
@@ -35,7 +34,7 @@ fn hex2b(data: &[u8]) -> u8 {
 }
 
 fn unescape(s: &[u8]) -> Cow<'_, [u8]> {
-    static HEX_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\\([\da-fA-F]{2})").unwrap());
+    static HEX_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\\([\da-fA-F]{2})").unwrap());
 
     HEX_RE.replace_all(s, |caps: &Captures| [hex2b(&caps[1])])
 }

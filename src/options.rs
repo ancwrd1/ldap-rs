@@ -19,6 +19,7 @@ mod tls {
 
     #[cfg(feature = "tls-rustls")]
     pub use rustls::ClientConfig;
+    use rustls_platform_verifier::BuilderVerifierExt;
 
     #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub enum TlsKind {
@@ -45,19 +46,10 @@ mod tls {
 
         #[cfg(feature = "tls-rustls")]
         fn default() -> Self {
-            pub static CA_CERTS: once_cell::sync::Lazy<rustls::RootCertStore> = once_cell::sync::Lazy::new(|| {
-                let certs = rustls_native_certs::load_native_certs()
-                    .certs
-                    .into_iter()
-                    .collect::<Vec<_>>();
-                let mut store = rustls::RootCertStore::empty();
-                store.add_parsable_certificates(certs);
-                store
-            });
-
             Self::Rustls(
                 ClientConfig::builder()
-                    .with_root_certificates(CA_CERTS.clone())
+                    .with_platform_verifier()
+                    .unwrap()
                     .with_no_client_auth(),
             )
         }
