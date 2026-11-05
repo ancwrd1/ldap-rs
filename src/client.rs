@@ -5,14 +5,13 @@ use std::{
     convert::{TryFrom, TryInto},
     pin::Pin,
     sync::{
-        Arc,
+        Arc, RwLock,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
     task::{Context, Poll},
 };
 
 use futures::{Future, Stream, TryStreamExt, future::BoxFuture};
-use parking_lot::RwLock;
 use rasn_ldap::{
     AuthenticationChoice, BindRequest, BindResponse, Controls, ExtendedRequest, LdapMessage, LdapResult, ProtocolOp,
     ResultCode, SaslCredentials, SearchResultDone, UnbindRequest,
@@ -360,7 +359,12 @@ impl Stream for Pages {
     type Item = Result<SearchEntries>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if !self.page_control.read().has_entries() {
+        if !self
+            .page_control
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .has_entries()
+        {
             return Poll::Ready(None);
         }
 
@@ -381,7 +385,14 @@ impl Stream for Pages {
                 let id = client.new_id();
 
                 let mut msg = LdapMessage::new(id, ProtocolOp::SearchRequest(request.into()));
-                msg.controls = Some(vec![control_ref.read().clone().with_size(page_size).try_into()?]);
+                msg.controls = Some(vec![
+                    control_ref
+                        .read()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clone()
+                        .with_size(page_size)
+                        .try_into()?,
+                ]);
 
                 let stream = client.connection.send_recv_stream(msg).await?;
                 Ok(SearchEntries {
@@ -429,7 +440,7 @@ impl SearchEntries {
                 });
 
                 if let Some(page_control) = page_control {
-                    *control_ref.write() = page_control;
+                    *control_ref.write().unwrap_or_else(|e| e.into_inner()) = page_control;
                     Poll::Ready(None)
                 } else {
                     Poll::Ready(Some(Err(Error::InvalidResponse)))

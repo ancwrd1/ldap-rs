@@ -2,14 +2,13 @@ use std::{
     collections::HashMap,
     io,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, RwLock},
     task::{Context, Poll},
 };
 
 use futures::channel::mpsc;
 use futures::{SinkExt, Stream, StreamExt};
 use log::debug;
-use parking_lot::RwLock;
 
 use crate::{
     TlsOptions,
@@ -56,7 +55,11 @@ impl LdapConnection {
                         break;
                     }
                     _ => {
-                        let sender = requests.read().get(&msg.message_id).cloned();
+                        let sender = requests
+                            .read()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .get(&msg.message_id)
+                            .cloned();
                         if let Some(mut sender) = sender {
                             let _ = sender.send(msg).await;
                         }
@@ -64,7 +67,7 @@ impl LdapConnection {
                 }
             }
             debug!("Connection terminated");
-            requests.write().clear();
+            requests.write().unwrap_or_else(|e| e.into_inner()).clear();
         });
 
         Ok(connection)
@@ -75,7 +78,7 @@ impl LdapConnection {
         self.channel_sender.send(msg).await?;
 
         let (tx, rx) = mpsc::channel(CHANNEL_SIZE);
-        self.requests.write().insert(id, tx);
+        self.requests.write().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
 
         Ok(MessageStream {
             id,
@@ -114,6 +117,9 @@ impl Stream for MessageStream {
 
 impl Drop for MessageStream {
     fn drop(&mut self) {
-        self.requests.write().remove(&self.id);
+        self.requests
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.id);
     }
 }
